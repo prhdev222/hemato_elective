@@ -184,6 +184,10 @@ table.elective-table tr:hover td{background:var(--gray1)}
 .tpl-card p{font-size:11px;color:var(--gray4);margin-bottom:6px;line-height:1.5}
 .tpl-preview{background:#fff;border:1px solid var(--gray2);border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;margin-top:8px;color:var(--gray5)}
 .var-chip{display:inline-block;background:var(--teal2);color:var(--teal);border-radius:4px;padding:1px 5px;font-size:10px;margin:1px;font-weight:600;cursor:help}
+.link-btn{background:none;border:none;padding:0;margin:0;color:var(--navy);font:inherit;font-weight:800;cursor:pointer;text-align:left}
+.link-btn:hover{text-decoration:underline}
+.detail-pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.75;color:var(--gray5);margin:0}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
 
 body.font-adjust-enabled :is(.modal-header h2,.field label,input,select,textarea,.btn,.btn-sm,.btn-icon,#app-header h1,#app-header h1 small,#user-label,#btn-logout,.nav-month,#search-input,#search-result p,.search-line-bubble pre,.chief-card h3,.chief-card p,.cal-head,.cal-date,.holiday-label,.opd-entry,.opd-sub,.elective-card-header h3,table.elective-table,table.elective-table th,.badge,.tab,#toast,.section-hint,.empty-state,.ward-btn,.tpl-card h4,.tpl-card p,.tpl-preview,.var-chip){
   font-size:calc(var(--base-font-size, 14px) + var(--font-bump))!important;
@@ -294,9 +298,9 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 <div class="overlay" id="modal-login">
   <div class="modal">
     <div style="text-align:center;padding:24px 24px 0">
-      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231B3A6B'/%3E%3Ctext x='32' y='41' fill='white' font-size='28' font-family='sans-serif' text-anchor='middle' font-weight='bold'%3EHS%3C/text%3E%3C/svg%3E" alt="HSOS" style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:12px">
+      <img src="SI_HEMATO.jpg" alt="Siriraj Hematology" title="กดเพื่อขยาย" onclick="openLogoModal()" style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:12px;cursor:zoom-in">
       <h2 style="font-size:18px;color:var(--navy);margin-bottom:4px">HSOS Calendar</h2>
-      <p style="font-size:13px;color:var(--gray4)">Hematology Smart Onboarding System</p>
+      <p style="font-size:13px;color:var(--gray4)">Hematology Smart Onboarding System (Siriraj Hematology)</p>
     </div>
     <div class="modal-body">
       <div style="display:flex;gap:8px;margin-bottom:20px">
@@ -395,6 +399,23 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" onclick="closeModal('modal-opd-day')">ปิด</button>
       <button type="button" class="btn btn-primary" id="btn-opd-day-add" onclick="openOPDNewFromDay()">+ เพิ่มรายการ OPD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Elective Detail (read-only) -->
+<div class="overlay" id="modal-elective-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-elective-detail-title">🧑‍⚕️ รายละเอียดแพทย์ Elective</h2>
+      <button class="close-btn" onclick="closeModal('modal-elective-detail')">×</button>
+    </div>
+    <div class="modal-body">
+      <pre id="elective-detail-text" class="detail-pre"></pre>
+    </div>
+    <div class="modal-footer detail-actions">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-elective-detail')">ปิด</button>
+      <button type="button" class="btn btn-success" onclick="copyElectiveDetail()">📋 คัดลอก</button>
     </div>
   </div>
 </div>
@@ -598,7 +619,7 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 ════════════════════════════════════════════ -->
 <header id="app-header">
   <img id="app-logo" src="SI_HEMATO.jpg" alt="Siriraj Hematology" title="กดเพื่อขยาย" onclick="openLogoModal()">
-  <h1>HSOS Calendar <small>Hematology Smart Onboarding System</small></h1>
+  <h1>HSOS Calendar <small>Hematology Smart Onboarding System (Siriraj Hematology)</small></h1>
   <span id="user-label"></span>
   <button id="btn-logout" onclick="logout()" style="display:none">ออกจากระบบ</button>
 </header>
@@ -1374,7 +1395,10 @@ function renderElectiveTable() {
 
     const canEdit = state.user?.role !== 'viewer';
     return `<tr>
-      <td><strong>${e.name}</strong><br><span style="font-size:11px;color:var(--gray4)">${e.from_hospital||''}</span></td>
+      <td>
+        <button type="button" class="link-btn" onclick="openElectiveDetail('${e.id}')">${e.name}</button>
+        <br><span style="font-size:11px;color:var(--gray4)">${e.from_hospital||''}</span>
+      </td>
       <td><span class="badge badge-blue">${e.level||'—'}</span></td>
       <td style="font-size:12px">${wardHtml}</td>
       <td>${opdHtml}</td>
@@ -2048,7 +2072,6 @@ function buildElectivePreviewClient(e) {
   const opd = electiveOpdBlockClient(e);
   if (opd) out += `\n\n${opd}`;
   out += `\n\n📚 คู่มือ: ${pdf}`;
-  out += '\n\n⚠️ แสดงจากข้อมูลในหน้านี้ (เซิร์ฟเวอร์ยังไม่ตอบ elective_preview) — หลัง deploy Worker จะตรงเทมเพลต LINE Bot';
   return out;
 }
 function electiveSearchFallback(trimmed) {
@@ -2268,6 +2291,23 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 function openLogoModal() { openModal('modal-logo'); }
 function closeLogoModal() { closeModal('modal-logo'); }
+
+function openElectiveDetail(id) {
+  const e = state.electives.find(x => x.id === id);
+  if (!e) { toast('ไม่พบข้อมูลแพทย์ Elective', 'error'); return; }
+  const text = buildElectivePreviewClient(e);
+  setText('modal-elective-detail-title', `🧑‍⚕️ ${e.name}`);
+  setText('elective-detail-text', text || '');
+  openModal('modal-elective-detail');
+}
+
+function copyElectiveDetail() {
+  const txt = (document.getElementById('elective-detail-text')?.textContent || '').trim();
+  if (!txt) { toast('ยังไม่มีข้อความให้คัดลอก', 'error'); return; }
+  navigator.clipboard.writeText(txt)
+    .then(() => toast('คัดลอกแล้ว ✓', 'success'))
+    .catch(() => toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Ctrl+C', 'error'));
+}
 
 // ── UI helpers ────────────────────────────────────────────────
 function val(id)         { return document.getElementById(id)?.value?.trim() || ''; }
