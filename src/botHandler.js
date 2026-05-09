@@ -1,6 +1,5 @@
 /**
  * botHandler.js
- * เทียบเท่า handleEvent() ใน Code.gs + TemplateService.gs + DoctorService.gs
  */
 
 import { findDoctorByName } from './fuzzyMatch.js';
@@ -11,17 +10,14 @@ import {
   getSetting,
 } from './lineTemplates.js';
 
-// ── Main handler ────────────────────────────────────────────
-// เทียบเท่า handleEvent() ใน Code.gs
 export async function handleLineEvent(event, db, env) {
-  // รับเฉพาะ text message — Silent Mode
   if (event.type !== 'message' || event.message.type !== 'text') return;
-  // อนุญาตทั้ง group / room / user (แชทส่วนตัว) เพื่อให้ทดสอบได้ง่าย
   if (!['group', 'room', 'user'].includes(event.source?.type)) return;
 
-  const text       = event.message.text;
+  const text       = event.message.text.trim();
   const replyToken = event.replyToken;
   const groupId    = event.source.groupId;
+  const userId     = event.source.userId;
   const wordCount  = countWords(text);
   const sourceType = event.source?.type;
 
@@ -34,28 +30,34 @@ export async function handleLineEvent(event, db, env) {
     });
   }
 
+  // ── myid command — เฉพาะ DM เท่านั้น ────────────────────────────────────
+  // อาจารย์/เลขา DM bot พิมพ์ "myid" → bot ตอบ userId
+  // Admin เอา userId ไป insert liff_admins ใน Turso
+  if (sourceType === 'user' && text.toLowerCase() === 'myid') {
+    await replyMessage(
+      replyToken,
+      `🆔 LINE User ID ของคุณ:\n${userId}\n\nส่งเลขนี้ให้ Admin เพื่อขอสิทธิ์กรอกข้อมูลค่ะ`,
+      env.LINE_CHANNEL_TOKEN
+    );
+    return;
+  }
+
   const threshold = parseInt((await getSetting('fuzzy_threshold', db)) || '90', 10) || 90;
 
-  // ถ้าพิมพ์ “ชื่ออย่างเดียว” (ไม่มีนามสกุล) → ห้ามตอบข้อมูลจริง
-  // เพื่อกันชื่อซ้ำ ให้ตอบเฉพาะข้อความแนะนำเมื่อคล้ายชื่อใน electives แบบหลวมๆ
+  // ── wordCount < 2 → hint หรือ silent ────────────────────────────────────
   if (wordCount < 2) {
-    const hint =
-      'กรุณาพิมพ์ “ชื่อ นามสกุล” ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
+    const hint = 'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
 
-    // แชทส่วนตัว: ตอบทันทีเมื่อดูเหมือนพิมพ์ชื่ออย่างเดียว
     if (sourceType === 'user' && isSingleThaiWord(text)) {
       await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
       return;
     }
-
-    // ในกลุ่ม/ห้อง: กันตอบมั่ว → ตอบเมื่อคล้ายชื่อ elective แบบหลวมๆ เท่านั้น
     if (isSingleThaiWord(text)) {
       const q = String(text || '').trim();
       const { rows } = await db.execute({
         sql: `SELECT 1 FROM electives
               WHERE (status IS NULL OR status != 'deleted')
-              AND name LIKE ?
-              LIMIT 1`,
+              AND name LIKE ? LIMIT 1`,
         args: [`%${q}%`],
       });
       if (rows?.length) {
@@ -63,10 +65,10 @@ export async function handleLineEvent(event, db, env) {
         return;
       }
     }
-    return; // Silent mode สำหรับแชททั่วไป
+    return;
   }
 
-  // 1) match doctors ก่อน (พฤติกรรมเดิม: ส่ง welcome ครั้งเดียว)
+  // ── match doctors ────────────────────────────────────────────────────────
   const { rows: doctors } = await db.execute(
     `SELECT * FROM doctors WHERE status IN ('active','upcoming')`
   );
@@ -75,10 +77,8 @@ export async function handleLineEvent(event, db, env) {
     const doctor = dMatch.doctor;
     if (doctor.status_check === 'replied') return;
     if (doctor.status === 'completed') return;
-
     const message = await buildWelcomeMessage(doctor, db);
     const ok = await replyMessage(replyToken, message, env.LINE_CHANNEL_TOKEN);
-
     if (ok) {
       await db.execute({
         sql: `UPDATE doctors SET status_check='replied', replied_at=? WHERE id=?`,
@@ -92,7 +92,7 @@ export async function handleLineEvent(event, db, env) {
     return;
   }
 
-  // 2) match electives → ตอบกลับแบบ reply message (ไม่ต้อง greeting)
+  // ── match electives ──────────────────────────────────────────────────────
   const { rows: electives } = await db.execute(
     `SELECT * FROM electives WHERE status IS NULL OR status != 'deleted' ORDER BY name`
   );
@@ -102,7 +102,7 @@ export async function handleLineEvent(event, db, env) {
       sql: `INSERT INTO logs(level,fn,message,meta) VALUES('INFO','line_no_match',?,?)`,
       args: [text, JSON.stringify({ elective_count: electives.length })],
     });
-    return; // Silent Mode
+    return;
   }
 
   const elective = eMatch.doctor;
@@ -124,18 +124,10 @@ export async function handleLineEvent(event, db, env) {
 function isSingleThaiWord(text) {
   const t = String(text || '').trim();
   if (!t) return false;
-
-  // ถ้ามีช่องว่างแล้ว ถือว่า "พยายามพิมพ์ชื่อ-นามสกุล" แล้ว → ไม่ต้อง hint
   const parts = t.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return false;
-
-  // ข้อความสั้นมาก/ไม่ใช่ชื่อ → ไม่ต้อง hint
   if (t.length < 2) return false;
-
-  // ต้องมีตัวอักษรไทยอย่างน้อย 1 ตัว (ลดการตอบกับข้อความอื่น)
   if (!/[ก-๙]/.test(t)) return false;
-
-  // ไม่มีช่องว่าง + มีตัวอักษรไทย + ความยาวพอดี → คาดว่าเป็น “ชื่ออย่างเดียว”
   return !/\s/.test(t);
 }
 
@@ -149,7 +141,7 @@ export function bestLooseMatch(text, list, looseThreshold = 70) {
   try {
     const m = findDoctorByName(text, list || [], looseThreshold);
     if (!m?.doctor) return null;
-    return m; // { doctor, similarity }
+    return m;
   } catch {
     return null;
   }
