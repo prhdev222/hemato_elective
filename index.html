@@ -6,6 +6,7 @@
 <title>HSOS Calendar</title>
 <link rel="icon" href="SI_HEMATO.jpg" />
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
 /* ── Reset & Variables ── */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -22,7 +23,6 @@
   font-family:'Sarabun',system-ui,sans-serif;
 }
 body{background:var(--gray1);color:var(--gray5);min-height:100vh}
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
 
 /* ── Overlay / Modal ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:16px}
@@ -90,6 +90,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 
 /* ── Search bar ── */
 #search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fff;border:1.5px solid var(--gray2);border-radius:var(--radius);padding:10px 12px;margin:0 0 14px;box-sizing:border-box;width:100%;max-width:100%}
+#search-hint{font-size:12px;color:var(--gray4);margin:0 0 6px 2px;line-height:1.4}
 #search-input{flex:1;min-width:160px;border:none;outline:none;font-family:inherit;font-size:14px;color:var(--gray5)}
 #btn-search-submit{flex-shrink:0;font-weight:700}
 #search-result{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:14px 16px 16px;margin-bottom:14px;position:relative;box-shadow:var(--shadow)}
@@ -188,6 +189,17 @@ table.elective-table tr:hover td{background:var(--gray1)}
 .link-btn:hover{text-decoration:underline}
 .detail-pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.75;color:var(--gray5);margin:0}
 .detail-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chart-card{border:1px solid var(--gray2);border-radius:12px;background:#fff;padding:12px}
+.chart-title{font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chart-canvas-wrap{position:relative;min-height:260px}
+@media(max-width:700px){.chart-grid{grid-template-columns:1fr}.chart-canvas-wrap{min-height:240px}}
+.chart-canvas-wrap canvas{cursor:zoom-in}
+.chart-zoom-modal{background:transparent;box-shadow:none;max-width:min(96vw,1000px);max-height:92vh;overflow:visible}
+.chart-zoom-modal .close-btn{position:absolute;top:-10px;right:-10px;background:#fff;border:1px solid var(--gray2);border-radius:999px;width:40px;height:40px;box-shadow:var(--shadow-md)}
+.chart-zoom-card{background:#fff;border:1px solid var(--gray2);border-radius:14px;padding:14px;box-shadow:var(--shadow-md)}
+.chart-zoom-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px}
+.chart-zoom-wrap{position:relative;width:min(92vw,960px);height:min(72vh,560px)}
 
 body.font-adjust-enabled :is(.modal-header h2,.field label,input,select,textarea,.btn,.btn-sm,.btn-icon,#app-header h1,#app-header h1 small,#user-label,#btn-logout,.nav-month,#search-input,#search-result p,.search-line-bubble pre,.chief-card h3,.chief-card p,.cal-head,.cal-date,.holiday-label,.opd-entry,.opd-sub,.elective-card-header h3,table.elective-table,table.elective-table th,.badge,.tab,#toast,.section-hint,.empty-state,.ward-btn,.tpl-card h4,.tpl-card p,.tpl-preview,.var-chip){
   font-size:calc(var(--base-font-size, 14px) + var(--font-bump))!important;
@@ -252,6 +264,7 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   #main{padding:10px}
 
   #search-bar{padding:10px;gap:6px}
+  #search-hint{font-size:13px;margin-bottom:8px}
   #search-input{font-size:16px;min-width:180px}
   #search-result{padding:14px}
   #search-result p{font-size:14px!important}
@@ -662,16 +675,17 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 <div id="main">
 
   <!-- Search (form = กด Enter ส่งเหมือนปุ่มค้นหา รองรับ IME ไทยได้ดีกว่าแค่ keydown เดียว) -->
+  <div id="search-hint">พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วกดค้นหาหรือ Enter เพื่อดูสิ่งที่ต้องทำ/กิจกรรมต่อไป</div>
   <form id="search-bar" role="search" autocomplete="off" onsubmit="event.preventDefault(); runElectiveSearchNow();">
     <span style="font-size:16px">🔎</span>
     <input type="text" name="q" id="search-input" enterkeyhint="search" autocomplete="off"
-           placeholder="พิมพ์ ชื่อ นามสกุล แล้วกดค้นหาหรือ Enter..." oninput="doSearchDebounced(this.value)">
+           placeholder="พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วกดค้นหาหรือ Enter… เพื่อดูสิ่งที่ต้องทำ/กิจกรรมต่อไป" oninput="doSearchDebounced(this.value)">
     <button type="submit" class="btn btn-primary btn-sm" id="btn-search-submit" title="ค้นหา">ค้นหา ↵</button>
     <button type="button" class="btn-icon" onclick="clearSearch()" title="ล้าง">×</button>
   </form>
   <div id="search-result" style="display:none">
     <button type="button" class="close-search" onclick="clearSearch()">×</button>
-    <p style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px;margin-right:36px">ข้อความแบบ LINE Bot — คัดลอกเก็บหรือส่งต่อได้</p>
+    <p style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px;margin-right:36px">พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วระบบจะแสดงกิจกรรม/สิ่งที่ต้องทำต่อไป (คัดลอกส่งต่อได้)</p>
     <div class="search-line-bubble"><pre id="search-preview"></pre></div>
     <button type="button" class="btn btn-success btn-sm" style="margin-top:12px;font-weight:600" onclick="copyPreview()">📋 คัดลอกข้อความทั้งก้อน</button>
   </div>
@@ -741,9 +755,107 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <button class="close-btn" onclick="closeModal('modal-stats')">×</button>
     </div>
     <div class="modal-body">
-      <p style="font-size:12px;color:var(--gray4);margin-bottom:12px">สรุปจำนวน Elective ที่มาดูงาน แยกตามเดือน (จากข้อมูลที่ Archive แล้ว + ข้อมูลปัจจุบัน)</p>
-      <div id="stats-content" style="min-height:100px">
-        <p class="empty-state">กำลังโหลด...</p>
+      <div class="tab-bar" style="margin-top:-6px">
+        <button class="tab active" onclick="switchStatsTab('stats-report')">🧾 รายงาน (Filter/Print/CSV)</button>
+        <button class="tab" onclick="switchStatsTab('stats-summary')">📊 สรุปจำนวน</button>
+      </div>
+
+      <div id="stats-report" class="tab-panel active">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+          <div class="field" style="margin:0;min-width:180px">
+            <label>ช่วงเวลา</label>
+            <select id="report-mode" onchange="syncReportModeUI();updateElectiveReport()">
+              <option value="month">รายเดือน</option>
+              <option value="year">รายปี</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label>ปี</label>
+            <select id="report-year" onchange="updateElectiveReport()"></select>
+          </div>
+          <div class="field" id="report-month-field" style="margin:0;min-width:150px">
+            <label>เดือน</label>
+            <select id="report-month" onchange="updateElectiveReport()"></select>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray4);margin-bottom:6px">
+            <input type="checkbox" id="report-include-period2" checked onchange="updateElectiveReport()">
+            รวมช่วงที่ 2 (ถ้ามี)
+          </label>
+          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-outline btn-sm" onclick="printElectiveReport()">🖨️ Print</button>
+            <button type="button" class="btn btn-success btn-sm" onclick="downloadElectiveReportCSV()">⬇️ CSV</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--gray2);border-radius:12px;padding:10px 12px;background:#fff;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">คอลัมน์ที่แสดง</div>
+          <div id="report-columns" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+        </div>
+
+        <div id="report-meta" style="font-size:12px;color:var(--gray4);margin-bottom:8px"></div>
+        <div style="overflow-x:auto">
+          <table class="elective-table" id="report-table">
+            <thead id="report-thead"></thead>
+            <tbody id="report-tbody"><tr><td class="empty-state">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="stats-summary" class="tab-panel">
+        <p style="font-size:12px;color:var(--gray4);margin-bottom:12px">สรุปจำนวน Elective ที่มาดูงาน แยกตามเดือน (จากข้อมูลที่ Archive แล้ว + ข้อมูลปัจจุบัน)</p>
+        <div id="stats-summary-content" style="min-height:100px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+            <div class="field" style="margin:0;min-width:160px">
+              <label>ปี (กราฟแท่ง)</label>
+              <select id="dash-year" onchange="renderStatsDashboard()"></select>
+            </div>
+            <div class="field" style="margin:0;min-width:180px">
+              <label>เดือน (กราฟวงกลม)</label>
+              <select id="dash-month" onchange="renderStatsDashboard()"></select>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-outline btn-sm" onclick="printStatsSummary()">🖨️ Print</button>
+            </div>
+          </div>
+
+          <div class="chart-grid" style="margin-bottom:12px">
+            <div class="chart-card">
+              <div class="chart-title">
+                <span>🟣 สัดส่วนระดับแพทย์ (เดือนที่เลือก)</span>
+                <span id="dash-pie-meta" style="font-size:11px;color:var(--gray4);font-weight:600"></span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-level-pie"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">
+                <span>🟦 จำนวน Elective รายเดือน (ปีที่เลือก)</span>
+                <span id="dash-bar-meta" style="font-size:11px;color:var(--gray4);font-weight:600"></span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-month-bar"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="stats-month-cards">
+            <p class="empty-state">กำลังโหลด...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart Zoom -->
+<div class="overlay" id="modal-chart-zoom" onclick="closeChartZoom()">
+  <div class="modal chart-zoom-modal" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeChartZoom()" aria-label="ปิด">×</button>
+    <div class="chart-zoom-card">
+      <div id="chart-zoom-title" class="chart-zoom-title">กราฟ</div>
+      <div class="chart-zoom-wrap">
+        <canvas id="chart-zoom-canvas"></canvas>
       </div>
     </div>
   </div>
@@ -1211,7 +1323,7 @@ function renderCalendar() {
         try {
           const ids = JSON.parse(e.elective_ids || '[]');
           (ids || []).forEach(id => set.add(id));
-        } catch { /* ignore */ }
+        } catch (e) { /* ignore */ }
       }
       return set.size;
     })();
@@ -1245,7 +1357,7 @@ function renderCalendar() {
 
 function getOPDElectiveNames(rawIds) {
   let ids = [];
-  try { ids = JSON.parse(rawIds || '[]'); } catch { ids = []; }
+  try { ids = JSON.parse(rawIds || '[]'); } catch (e) { ids = []; }
   return ids
     .map(id => state.electives.find(e => e.id === id)?.name)
     .filter(Boolean)
@@ -1315,7 +1427,7 @@ function renderElectiveTable() {
         if (!opdByElective[eid]) opdByElective[eid] = [];
         opdByElective[eid].push(opd);
       });
-    } catch {}
+    } catch (e) {}
   });
 
   const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -1703,7 +1815,7 @@ async function saveElective() {
       if (!found) {
         toast(`บันทึกแล้วแต่ยังไม่พบในรายการ Elective (ตรวจสอบ Backend URL: ${getWorkerUrl()})`, 'error');
       }
-    } catch { /* ignore */ }
+    } catch (e) { /* ignore */ }
   } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
   finally {
     if (btn) { btn.dataset.busy='0'; btn.disabled=false; btn.textContent='💾 บันทึก'; }
@@ -2053,7 +2165,7 @@ function electiveOpdBlockClient(e) {
       if (subs.length >= 10) break;
     }
     return subs.length ? `🏥 ตาราง OPD\n${subs.join('\n')}` : '';
-  } catch { return ''; }
+  } catch (e) { return ''; }
 }
 function buildElectivePreviewClient(e) {
   const pdf = state.publicSettings?.find(x => x.key === 'pdf_manual_url')?.value || '(ยังไม่ตั้งค่า)';
@@ -2252,7 +2364,7 @@ async function parseJsonSafe(res) {
   if (!text) return {};
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (e) {
     return { success: false, error: `ตอบกลับไม่ใช่ JSON (HTTP ${res.status}): ${text.slice(0, 120)}` };
   }
 }
@@ -2714,8 +2826,10 @@ async function loadArchiveStats() {
 
 async function openStatsModal() {
   openModal('modal-stats');
-  const el = document.getElementById('stats-content');
-  el.innerHTML = '<p class="empty-state">กำลังโหลด...</p>';
+  initElectiveReportUI();
+  const el = document.getElementById('stats-summary-content');
+  const cardsEl = document.getElementById('stats-month-cards');
+  if (cardsEl) cardsEl.innerHTML = '<p class="empty-state">กำลังโหลด...</p>';
   try {
     // ดึงสถิติจาก DB
     const res = await apiGet('action=elective_stats');
@@ -2752,7 +2866,7 @@ async function openStatsModal() {
     });
 
     if (!allMonths.size) {
-      el.innerHTML = '<p class="empty-state">ยังไม่มีข้อมูลสถิติ</p>';
+      if (cardsEl) cardsEl.innerHTML = '<p class="empty-state">ยังไม่มีข้อมูลสถิติ</p>';
       return;
     }
 
@@ -2783,10 +2897,515 @@ async function openStatsModal() {
       </div>`;
     });
     html += '</div>';
-    el.innerHTML = html;
+    if (cardsEl) cardsEl.innerHTML = html;
+
+    // dashboard data
+    _statsAllMonths = allMonths;
+    initStatsDashboardUI(allMonths);
+    await ensureChartJs();
+    renderStatsDashboard();
   } catch(e) {
-    el.innerHTML = `<p class="empty-state" style="color:var(--red)">โหลดไม่ได้: ${e.message}</p>`;
+    if (cardsEl) cardsEl.innerHTML = `<p class="empty-state" style="color:var(--red)">โหลดไม่ได้: ${e.message}</p>`;
   }
+}
+
+let _statsAllMonths = null; // Map<YYYY-MM, {total, byLevel, byHospital, isArchived}>
+let _chartLevelPie = null;
+let _chartMonthBar = null;
+let _chartZoom = null;
+let _lastPieSpec = null;
+let _lastBarSpec = null;
+
+async function ensureChartJs() {
+  if (window.Chart) return true;
+  return await new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+function initStatsDashboardUI(allMonths) {
+  const yearSel = document.getElementById('dash-year');
+  const monthSel = document.getElementById('dash-month');
+  if (!yearSel || !monthSel) return;
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  // years present in stats
+  const years = new Set([...allMonths.keys()].map(k => parseInt(k.slice(0,4), 10)));
+  const sortedYears = [...years].sort((a,b) => b - a);
+  yearSel.innerHTML = sortedYears.map(y => `<option value="${y}">${y + 543}</option>`).join('');
+
+  // months present (for donut choose specific month)
+  const sortedMonths = [...allMonths.keys()].sort((a,b) => b.localeCompare(a));
+  monthSel.innerHTML = sortedMonths.map(ym => {
+    const y = parseInt(ym.slice(0,4),10);
+    const m = parseInt(ym.slice(5,7),10);
+    return `<option value="${ym}">${monthsTH[m]} ${y + 543}</option>`;
+  }).join('');
+
+  // default: current month/year if exists, else latest
+  const cur = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }); // YYYY-MM-DD
+  const curYm = cur.slice(0,7);
+  if ([...monthSel.options].some(o => o.value === curYm)) monthSel.value = curYm;
+  else if (sortedMonths[0]) monthSel.value = sortedMonths[0];
+
+  const curY = parseInt(cur.slice(0,4),10);
+  if ([...yearSel.options].some(o => parseInt(o.value,10) === curY)) yearSel.value = String(curY);
+  else if (sortedYears[0]) yearSel.value = String(sortedYears[0]);
+}
+
+function renderStatsDashboard() {
+  if (!_statsAllMonths) return;
+  if (!window.Chart) {
+    toast('โหลดกราฟไม่สำเร็จ (Chart.js)', 'error');
+    return;
+  }
+
+  const year = parseInt(document.getElementById('dash-year')?.value || '', 10);
+  const monthKey = document.getElementById('dash-month')?.value || '';
+  if (!year || !monthKey) return;
+
+  // Doughnut: byLevel of selected month
+  const d = _statsAllMonths.get(monthKey) || { total: 0, byLevel: {} };
+  const entries = Object.entries(d.byLevel || {});
+  entries.sort((a,b) => b[1] - a[1]);
+  const labels = entries.map(([k]) => k);
+  const values = entries.map(([,v]) => v);
+  const pieMeta = document.getElementById('dash-pie-meta');
+  if (pieMeta) pieMeta.textContent = d.total ? `${d.total} คน` : '—';
+
+  const pieCtx = document.getElementById('chart-level-pie');
+  if (_chartLevelPie) { _chartLevelPie.destroy(); _chartLevelPie = null; }
+  _lastPieSpec = { labels, values, total: d.total || 0, monthKey };
+  _chartLevelPie = new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: [
+          '#1B3A6B','#0F7B6C','#B8860B','#C0392B','#6B7280',
+          '#2456A4','#10b981','#f59e0b','#ef4444','#9ca3af'
+        ],
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed}` } }
+      },
+      cutout: '62%',
+    }
+  });
+  try {
+    pieCtx.onclick = () => openChartZoom('pie');
+  } catch (e) { /* ignore */ }
+
+  // Bar: totals by month for selected year
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const barLabels = Array.from({length:12}, (_,i)=>monthsTH[i+1]);
+  const barValues = Array.from({length:12}, (_,i)=>{
+    const key = `${year}-${String(i+1).padStart(2,'0')}`;
+    return _statsAllMonths.get(key)?.total || 0;
+  });
+  const sum = barValues.reduce((a,b)=>a+b,0);
+  const barMeta = document.getElementById('dash-bar-meta');
+  if (barMeta) barMeta.textContent = sum ? `รวม ${sum} คน` : '—';
+
+  const barCtx = document.getElementById('chart-month-bar');
+  if (_chartMonthBar) { _chartMonthBar.destroy(); _chartMonthBar = null; }
+  _lastBarSpec = { labels: barLabels, values: barValues, year };
+  _chartMonthBar = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [{
+        label: 'จำนวน Elective',
+        data: barValues,
+        backgroundColor: '#2456A4',
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    }
+  });
+  try {
+    barCtx.onclick = () => openChartZoom('bar');
+  } catch (e) { /* ignore */ }
+}
+
+function openChartZoom(kind) {
+  if (!window.Chart) { toast('ยังโหลดกราฟไม่สำเร็จ', 'error'); return; }
+  const canvas = document.getElementById('chart-zoom-canvas');
+  const titleEl = document.getElementById('chart-zoom-title');
+  if (!canvas || !titleEl) return;
+
+  if (_chartZoom) { _chartZoom.destroy(); _chartZoom = null; }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  if (kind === 'pie') {
+    const spec = _lastPieSpec;
+    if (!spec) return;
+    const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const y = parseInt(spec.monthKey.slice(0,4),10);
+    const m = parseInt(spec.monthKey.slice(5,7),10);
+    titleEl.textContent = `🟣 สัดส่วนระดับแพทย์ — ${monthsTH[m]} ${y + 543} (${spec.total} คน)`;
+    _chartZoom = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: spec.labels,
+        datasets: [{
+          data: spec.values,
+          backgroundColor: [
+            '#1B3A6B','#0F7B6C','#B8860B','#C0392B','#6B7280',
+            '#2456A4','#10b981','#f59e0b','#ef4444','#9ca3af'
+          ],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'right' } },
+        cutout: '62%',
+      }
+    });
+  } else {
+    const spec = _lastBarSpec;
+    if (!spec) return;
+    titleEl.textContent = `🟦 จำนวน Elective รายเดือน — ปี ${spec.year + 543}`;
+    _chartZoom = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: spec.labels,
+        datasets: [{
+          label: 'จำนวน Elective',
+          data: spec.values,
+          backgroundColor: '#2456A4',
+          borderRadius: 8,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      }
+    });
+  }
+
+  openModal('modal-chart-zoom');
+}
+
+function closeChartZoom() {
+  closeModal('modal-chart-zoom');
+  if (_chartZoom) { _chartZoom.destroy(); _chartZoom = null; }
+}
+
+function printStatsSummary() {
+  const year = parseInt(document.getElementById('dash-year')?.value || '', 10);
+  const monthKey = document.getElementById('dash-month')?.value || '';
+  const monthLabel = (() => {
+    if (!monthKey) return '';
+    const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const y = parseInt(monthKey.slice(0,4),10);
+    const m = parseInt(monthKey.slice(5,7),10);
+    return `${monthsTH[m]} ${y + 543}`;
+  })();
+
+  const pieImg = (() => {
+    try { return _chartLevelPie?.toBase64Image?.('image/png', 1) || ''; } catch (e) { return ''; }
+  })();
+  const barImg = (() => {
+    try { return _chartMonthBar?.toBase64Image?.('image/png', 1) || ''; } catch (e) { return ''; }
+  })();
+  const cardsHtml = document.getElementById('stats-month-cards')?.innerHTML || '';
+
+  const title = `สรุปจำนวน Elective — ปี ${year ? (year + 543) : '—'} / เดือน ${monthLabel || '—'}`;
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body{font-family:Sarabun,system-ui,sans-serif;margin:22px;color:#111}
+      h1{font-size:16px;margin:0 0 12px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+      .card{border:1px solid #ddd;border-radius:12px;padding:12px}
+      .card h2{font-size:13px;margin:0 0 8px}
+      img{max-width:100%;height:auto;border-radius:10px}
+      .meta{font-size:12px;color:#555;margin-bottom:10px}
+      @media print{.no-print{display:none}}
+      @page{margin:14mm}
+      @media(max-width:800px){.grid{grid-template-columns:1fr}}
+    </style>
+  </head><body>
+    <h1>${escapeHtml(title)}</h1>
+    <div class="grid">
+      <div class="card">
+        <h2>สัดส่วนระดับแพทย์ (เดือนที่เลือก)</h2>
+        ${pieImg ? `<img src="${pieImg}" alt="pie">` : `<div class="meta">ไม่สามารถสร้างรูปกราฟได้</div>`}
+      </div>
+      <div class="card">
+        <h2>จำนวน Elective รายเดือน (ปีที่เลือก)</h2>
+        ${barImg ? `<img src="${barImg}" alt="bar">` : `<div class="meta">ไม่สามารถสร้างรูปกราฟได้</div>`}
+      </div>
+    </div>
+    <div class="card">
+      <h2>รายละเอียดรายเดือน</h2>
+      ${cardsHtml || '<div class="meta">ไม่มีข้อมูล</div>'}
+    </div>
+    <div class="no-print" style="margin-top:12px;text-align:right">
+      <button onclick="window.print()">พิมพ์</button>
+    </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('เปิดหน้าพิมพ์ไม่ได้ (browser block popup)', 'error'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => {
+    try { w.focus(); w.print(); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+function switchStatsTab(panelId) {
+  document.querySelectorAll('#modal-stats .tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#modal-stats .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(panelId)?.classList.add('active');
+  // ปุ่มที่กด
+  try { event?.target?.classList?.add('active'); } catch (e) { /* ignore */ }
+}
+
+// ── Elective Report (Filter/Print/CSV) ─────────────────────────
+const _REPORT_DEFAULT_COLUMNS = [
+  'name', 'level', 'from_hospital', 'date_range', 'ward', 'date_range2', 'ward2', 'status'
+];
+const _REPORT_COLUMN_LABELS = {
+  name: 'ชื่อ',
+  level: 'ระดับ',
+  from_hospital: 'สังกัด',
+  date_range: 'ช่วงที่ 1',
+  ward: 'Ward 1',
+  date_range2: 'ช่วงที่ 2',
+  ward2: 'Ward 2',
+  status: 'สถานะ',
+};
+
+function initElectiveReportUI() {
+  // เติม dropdown เดือน/ปีจากข้อมูล electives ที่มี
+  const yearSel = document.getElementById('report-year');
+  const monthSel = document.getElementById('report-month');
+  const colBox = document.getElementById('report-columns');
+  if (!yearSel || !monthSel || !colBox) return;
+
+  // build year list
+  const years = new Set();
+  (state.electives || []).forEach(e => {
+    const r1 = parseRange(e.date_range || '');
+    const r2 = parseRange(e.date_range2 || '');
+    [r1?.start, r1?.end, r2?.start, r2?.end].filter(Boolean).forEach(d => years.add(d.getFullYear()));
+  });
+  const yNow = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }).slice(0,4);
+  if (!years.size) years.add(parseInt(yNow, 10));
+  const sortedYears = [...years].sort((a,b) => b - a);
+  yearSel.innerHTML = sortedYears.map(y => `<option value="${y}">${y + 543}</option>`).join('');
+
+  // month list
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    return `<option value="${String(m).padStart(2,'0')}">${monthsTH[m]}</option>`;
+  }).join('');
+
+  // default current month/year
+  const cur = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }); // YYYY-MM-DD
+  const curY = cur.slice(0,4);
+  const curM = cur.slice(5,7);
+  if ([...yearSel.options].some(o => o.value === curY)) yearSel.value = curY;
+  monthSel.value = curM;
+
+  // columns checkboxes
+  colBox.innerHTML = _REPORT_DEFAULT_COLUMNS.map(key => {
+    const label = _REPORT_COLUMN_LABELS[key] || key;
+    return `<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--gray4)">
+      <input type="checkbox" class="report-col-cb" value="${key}" checked onchange="updateElectiveReport()">
+      <span>${label}</span>
+    </label>`;
+  }).join('');
+
+  syncReportModeUI();
+  updateElectiveReport();
+}
+
+function syncReportModeUI() {
+  const mode = document.getElementById('report-mode')?.value || 'month';
+  const mf = document.getElementById('report-month-field');
+  if (mf) mf.style.display = mode === 'month' ? '' : 'none';
+}
+
+function getSelectedReportColumns() {
+  return Array.from(document.querySelectorAll('#report-columns .report-col-cb:checked'))
+    .map(cb => cb.value)
+    .filter(Boolean);
+}
+
+function electiveOverlapsMonth(e, yyyy, mm, includePeriod2 = true) {
+  const monthStart = new Date(yyyy, mm - 1, 1);
+  const monthEnd = new Date(yyyy, mm, 0);
+  const r1 = parseRange(e.date_range || '');
+  const r2 = includePeriod2 ? parseRange(e.date_range2 || '') : null;
+  const hit = (r) => r && r.start <= monthEnd && r.end >= monthStart;
+  return hit(r1) || hit(r2);
+}
+
+function electiveOverlapsYear(e, yyyy, includePeriod2 = true) {
+  const yearStart = new Date(yyyy, 0, 1);
+  const yearEnd = new Date(yyyy, 11, 31);
+  const r1 = parseRange(e.date_range || '');
+  const r2 = includePeriod2 ? parseRange(e.date_range2 || '') : null;
+  const hit = (r) => r && r.start <= yearEnd && r.end >= yearStart;
+  return hit(r1) || hit(r2);
+}
+
+function updateElectiveReport() {
+  const mode = document.getElementById('report-mode')?.value || 'month';
+  const y = parseInt(document.getElementById('report-year')?.value || '', 10);
+  const m = parseInt(document.getElementById('report-month')?.value || '', 10);
+  const include2 = Boolean(document.getElementById('report-include-period2')?.checked);
+  const cols = getSelectedReportColumns();
+  const meta = document.getElementById('report-meta');
+  const thead = document.getElementById('report-thead');
+  const tbody = document.getElementById('report-tbody');
+  if (!thead || !tbody || !y) return;
+
+  const list = (state.electives || []).filter(e => (e.status || '') !== 'deleted');
+  const filtered = list.filter(e => mode === 'year'
+    ? electiveOverlapsYear(e, y, include2)
+    : electiveOverlapsMonth(e, y, m || 1, include2)
+  );
+  filtered.sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'th'));
+
+  const title = (() => {
+    if (mode === 'year') return `รายงาน Elective ปี ${y + 543}`;
+    const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `รายงาน Elective เดือน ${monthsTH[m]} ${y + 543}`;
+  })();
+  if (meta) meta.textContent = `${title} — พบ ${filtered.length} คน`;
+
+  const safeCols = cols.length ? cols : ['name'];
+  thead.innerHTML = `<tr>${safeCols.map(c => `<th>${_REPORT_COLUMN_LABELS[c] || c}</th>`).join('')}</tr>`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="${safeCols.length}" class="empty-state">ไม่มีข้อมูลตามเงื่อนไข</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(e => {
+    const row = safeCols.map(c => {
+      const v = (e && typeof e[c] !== 'undefined') ? e[c] : '';
+      return `<td style="font-size:13px">${escapeHtml(String(v || '—'))}</td>`;
+    }).join('');
+    return `<tr>${row}</tr>`;
+  }).join('');
+}
+
+function downloadElectiveReportCSV() {
+  const mode = document.getElementById('report-mode')?.value || 'month';
+  const y = parseInt(document.getElementById('report-year')?.value || '', 10);
+  const m = parseInt(document.getElementById('report-month')?.value || '', 10);
+  const include2 = Boolean(document.getElementById('report-include-period2')?.checked);
+  const cols = getSelectedReportColumns();
+  const safeCols = cols.length ? cols : ['name'];
+  if (!y) return;
+
+  const list = (state.electives || []).filter(e => (e.status || '') !== 'deleted');
+  const filtered = list.filter(e => mode === 'year'
+    ? electiveOverlapsYear(e, y, include2)
+    : electiveOverlapsMonth(e, y, m || 1, include2)
+  ).sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'th'));
+
+  const header = safeCols.map(c => _REPORT_COLUMN_LABELS[c] || c);
+  const rows = filtered.map(e => safeCols.map(c => (e && typeof e[c] !== 'undefined') ? String(e[c] || '') : ''));
+  const csv = toCsv([header, ...rows]);
+  const filename = mode === 'year'
+    ? `electives_${y}.csv`
+    : `electives_${y}-${String(m || 1).padStart(2,'0')}.csv`;
+  downloadTextFile(csv, filename, 'text/csv;charset=utf-8');
+}
+
+function printElectiveReport() {
+  const title = document.getElementById('report-meta')?.textContent || 'รายงาน Elective';
+  const table = document.getElementById('report-table');
+  if (!table) return;
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body{font-family:Sarabun,system-ui,sans-serif;margin:24px;color:#111}
+      h1{font-size:16px;margin:0 0 12px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #ddd;padding:6px 8px;vertical-align:top}
+      th{background:#f5f5f5;text-align:left}
+      @media print{button{display:none}}
+    </style>
+  </head><body>
+    <h1>${escapeHtml(title)}</h1>
+    ${table.outerHTML}
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { toast('เปิดหน้าพิมพ์ไม่ได้ (browser block popup)', 'error'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // เรียกพิมพ์จากหน้าต้นทาง (กันปัญหา <\/script> ใน template literal)
+  setTimeout(() => {
+    try { w.focus(); w.print(); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+function toCsv(rows) {
+  // Use CRLF for best Excel compatibility on Windows
+  return rows.map(r => r.map(cell => {
+    const s = String(cell ?? '');
+    const escaped = s.replace(/\"/g, '\"\"');
+    return /[\",\n]/.test(s) ? `"${escaped}"` : escaped;
+  }).join(',')).join('\r\n');
+}
+
+function downloadTextFile(text, filename, mime) {
+  const isCsv = String(mime || '').toLowerCase().includes('text/csv');
+  const payload = isCsv ? (`\ufeff${text}`) : text; // UTF-8 BOM for Excel
+  const blob = new Blob([payload], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── LINE Bot Template Editor ─────────────────────────────────
@@ -2864,7 +3483,7 @@ async function loadLineBotTemplates() {
       if (pdfUrl) document.getElementById('setting-pdf-url').value = pdfUrl.value || '';
       if (groupId) document.getElementById('setting-group-id').value = groupId.value || '';
     }
-  } catch { /* silent */ }
+  } catch (e) { /* silent */ }
 }
 
 async function saveLineBotTemplates() {
@@ -2964,8 +3583,8 @@ function previewTemplate(which) {
 function switchLineBotTab(tabId) {
   document.querySelectorAll('#modal-linebot .tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('#modal-linebot .tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  event.target.classList.add('active');
+  document.getElementById(tabId)?.classList.add('active');
+  try { event?.target?.classList?.add('active'); } catch (e) { /* ignore */ }
 }
 
 </script>
