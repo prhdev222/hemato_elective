@@ -1,1 +1,3592 @@
-PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRoIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgo8dGl0bGU+SFNPUSBDYW xlbmRhcjwvdGl0bGU+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSOS Calendar</title>
+<link rel="icon" href="SI_HEMATO.jpg" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+/* ── Reset & Variables ── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1B3A6B;--navy2:#2456A4;--navy3:#EBF2FF;
+  --teal:#0F7B6C;--teal2:#E6F7F5;
+  --gold:#B8860B;--gold2:#FFF8E1;
+  --red:#C0392B;--red2:#FDEDEB;
+  --gray1:#F7F8FA;--gray2:#EAECF0;--gray3:#C4C9D4;--gray4:#6B7280;--gray5:#374151;
+  --white:#FFFFFF;
+  --radius:10px;--radius-sm:6px;
+  --shadow:0 2px 12px rgba(27,58,107,.10);
+  --shadow-md:0 4px 24px rgba(27,58,107,.15);
+  --font-bump:0px;
+  font-family:'Sarabun',system-ui,sans-serif;
+}
+body{background:var(--gray1);color:var(--gray5);min-height:100vh}
+
+/* ── Overlay / Modal ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-md);width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal-lg{max-width:640px}
+.modal-header{padding:18px 20px 14px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
+.modal-header h2{font-size:16px;font-weight:600;color:var(--navy)}
+.modal-body{padding:20px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--gray2);display:flex;gap:8px;justify-content:flex-end}
+.close-btn{background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray4);line-height:1;padding:2px 6px}
+.close-btn:hover{color:var(--gray5)}
+
+/* ── Form ── */
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--gray4);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.field label .req{color:var(--red)}
+input[type=text],input[type=date],input[type=password],select,textarea{
+  width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);
+  font-family:inherit;font-size:14px;color:var(--gray5);background:var(--white);
+  transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy2);box-shadow:0 0 0 3px rgba(36,86,164,.12)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px}
+textarea{resize:vertical;min-height:60px;line-height:1.5}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media(max-width:500px){.two-col,.three-col{grid-template-columns:1fr}}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy2)}
+.btn-success{background:var(--teal);color:#fff}.btn-success:hover{background:#0a6358}
+.btn-outline{background:#fff;border:1.5px solid var(--gray2);color:var(--gray5)}.btn-outline:hover{border-color:var(--navy);color:var(--navy)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#a93226}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-icon{padding:7px;border-radius:var(--radius-sm);background:var(--gray1);border:1px solid var(--gray2);cursor:pointer;font-size:15px;line-height:1;transition:all .15s}.btn-icon:hover{background:var(--gray2)}
+
+/* ── Header ── */
+#app-header{background:var(--navy);color:#fff;padding:0 20px;display:flex;align-items:center;gap:12px;height:56px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#app-header img{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.3)}
+#app-logo{cursor:zoom-in}
+.logo-modal{background:transparent;box-shadow:none;max-width:min(92vw,760px);max-height:92vh;overflow:visible}
+.logo-modal img{width:100%;height:auto;border-radius:14px;background:#fff}
+.logo-modal .close-btn{position:absolute;top:-10px;right:-10px;background:#fff;border:1px solid var(--gray2);border-radius:999px;width:40px;height:40px;box-shadow:var(--shadow-md)}
+#app-header h1{font-size:16px;font-weight:700;flex:1}
+#app-header h1 small{font-size:11px;font-weight:400;opacity:.7;display:block}
+#user-label{font-size:12px;opacity:.8}
+#btn-logout{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit}
+#btn-logout:hover{background:rgba(255,255,255,.25)}
+
+/* ── Toolbar ── */
+#toolbar{background:#fff;border-bottom:1px solid var(--gray2);padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:56px;z-index:199}
+.toolbar-sep{width:1px;height:24px;background:var(--gray2);margin:0 4px}
+.nav-month{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;color:var(--navy)}
+.nav-month button{background:var(--gray1);border:1px solid var(--gray2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:16px;line-height:1}
+.nav-month button:hover{background:var(--gray2)}
+.font-controls{display:flex;align-items:center;gap:4px;background:var(--gray1);border:1px solid var(--gray2);border-radius:999px;padding:3px}
+.font-controls button{border:none;background:transparent;color:var(--gray5);border-radius:999px;min-width:32px;height:30px;padding:0 8px;font-family:inherit;font-weight:800;cursor:pointer}
+.font-controls button:hover,.font-controls button.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(27,58,107,.12)}
+.font-controls .font-sm{font-size:12px}.font-controls .font-md{font-size:14px}.font-controls .font-lg{font-size:17px}
+
+/* ── Main layout ── */
+#main{max-width:1100px;margin:0 auto;padding:16px}
+
+/* ── Search bar ── */
+#search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fff;border:1.5px solid var(--gray2);border-radius:var(--radius);padding:10px 12px;margin:0 0 14px;box-sizing:border-box;width:100%;max-width:100%}
+#search-hint{font-size:12px;color:var(--gray4);margin:0 0 6px 2px;line-height:1.4}
+#search-input{flex:1;min-width:160px;border:none;outline:none;font-family:inherit;font-size:14px;color:var(--gray5)}
+#btn-search-submit{flex-shrink:0;font-weight:700}
+#search-result{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:14px 16px 16px;margin-bottom:14px;position:relative;box-shadow:var(--shadow)}
+#search-result .close-search{position:absolute;top:10px;right:12px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--gray4)}
+.search-line-bubble{background:linear-gradient(180deg,#f4fff8 0%,#e8fceb 100%);border:1.5px solid #8fce9c;border-radius:16px;padding:14px 16px;margin-top:10px;max-height:min(420px,70vh);overflow-y:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.85)}
+.search-line-bubble pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.75;color:#1f2937;margin:0}
+
+/* ── Chief cards ── */
+.chief-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:600px){.chief-row{grid-template-columns:1fr}}
+.chief-card{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.chief-card.chief-card-male{background:var(--navy3);border-color:#B8CDE8}
+.chief-card.chief-card-female{background:#FFF0F6;border-color:#EDC4D9}
+.chief-card h3{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px}
+.chief-card p{font-size:12px;color:var(--gray4);line-height:1.7}
+.chief-card p strong{color:var(--gray5)}
+.chief-edit-btn{float:right;margin-top:-2px}
+
+/* ── Calendar ── */
+.calendar-card{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--gray2)}
+.cal-head{text-align:center;font-size:11px;font-weight:700;color:var(--gray4);padding:8px 4px;background:var(--gray1);text-transform:uppercase;letter-spacing:.5px;border-right:1px solid var(--gray2)}
+.cal-head:last-child{border-right:none}
+.cal-head.weekend{color:var(--red);background:#fef2f2}
+.cal-cell{border-right:1px solid var(--gray2);border-top:1px solid var(--gray2);padding:6px;min-height:80px;cursor:pointer;transition:background .1s;position:relative;vertical-align:top}
+.cal-cell:last-child{border-right:none}
+.cal-cell:hover{background:var(--navy3)}
+.cal-cell.empty{background:var(--gray1);cursor:default}
+.cal-cell.empty:hover{background:var(--gray1)}
+.cal-cell.weekend{background:#fff5f5;cursor:default}
+.cal-cell.weekend:hover{background:#fee2e2}
+.cal-cell.holiday{background:#fff5f5;cursor:default}
+.cal-cell.holiday:hover{background:#fee2e2}
+.cal-date{font-size:11px;font-weight:700;color:var(--gray4);margin-bottom:4px}
+.cal-date.today{color:var(--navy2);font-size:12px}
+.cal-date.weekend-date{color:var(--red)}
+.cal-date.holiday-date{color:var(--red)}
+.holiday-label{font-size:9px;color:var(--red);font-weight:600;line-height:1.3;margin-bottom:2px}
+.opd-entry{background:var(--teal2);border-left:3px solid var(--teal);border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;line-height:1.4}
+.opd-entry.solo{background:var(--gold2);border-left-color:var(--gold)}
+.opd-name{font-weight:600;color:var(--teal)}
+.opd-name.solo{color:var(--gold)}
+.opd-sub{color:var(--gray4);font-size:10px}
+.add-opd-hint{text-align:center;position:absolute;bottom:4px;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
+.cal-add-btn{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;border:1px solid var(--gray2);background:#fff;color:var(--navy);font-size:14px;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06);transition:background .12s,border-color .12s,transform .12s}
+.cal-add-btn:hover{background:var(--navy3);border-color:var(--navy2)}
+.cal-add-btn:active{transform:scale(.96)}
+
+/* ── Elective table ── */
+.elective-card{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.elective-card-header{padding:12px 16px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
+.elective-card-header h3{font-size:14px;font-weight:700;color:var(--navy)}
+table.elective-table{width:100%;border-collapse:collapse;font-size:13px}
+table.elective-table th{background:var(--gray1);padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--gray4);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--gray2)}
+table.elective-table td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:middle}
+table.elective-table tr:last-child td{border-bottom:none}
+table.elective-table tr:hover td{background:var(--gray1)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-blue{background:var(--navy3);color:var(--navy)}
+.badge-teal{background:var(--teal2);color:var(--teal)}
+.badge-gold{background:var(--gold2);color:var(--gold)}
+
+/* ── Manage tabs ── */
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--gray2);margin-bottom:16px}
+.tab{padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--gray4);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab.active{color:var(--navy);border-bottom-color:var(--navy)}
+.tab:hover{color:var(--navy2)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--gray5);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:9999;display:none;box-shadow:var(--shadow-md)}
+#toast.success{background:var(--teal)}
+#toast.error{background:var(--red)}
+
+/* ── Loading ── */
+#loader{position:fixed;inset:0;background:rgba(255,255,255,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+#loader.hidden{display:none}
+.spinner{width:36px;height:36px;border:4px solid var(--gray2);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Misc ── */
+.section-hint{font-size:12px;color:var(--gray4);padding:10px 16px;background:var(--gray1);border-bottom:1px solid var(--gray2);line-height:1.5}
+.empty-state{text-align:center;padding:32px;color:var(--gray3);font-size:14px}
+.ward-btn-group{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.ward-btn{flex:1 1 120px;min-width:120px;padding:8px;border:1.5px solid var(--gray2);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:var(--gray5);text-align:center;transition:all .15s}
+.ward-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.multi-select{height:100px}
+
+/* ── LINE Template Editor ── */
+.tpl-card{background:var(--navy3);border:1px solid var(--navy2);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.tpl-card h4{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.tpl-card p{font-size:11px;color:var(--gray4);margin-bottom:6px;line-height:1.5}
+.tpl-preview{background:#fff;border:1px solid var(--gray2);border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;margin-top:8px;color:var(--gray5)}
+.var-chip{display:inline-block;background:var(--teal2);color:var(--teal);border-radius:4px;padding:1px 5px;font-size:10px;margin:1px;font-weight:600;cursor:help}
+.link-btn{background:none;border:none;padding:0;margin:0;color:var(--navy);font:inherit;font-weight:800;cursor:pointer;text-align:left}
+.link-btn:hover{text-decoration:underline}
+.detail-pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.75;color:var(--gray5);margin:0}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chart-card{border:1px solid var(--gray2);border-radius:12px;background:#fff;padding:12px}
+.chart-title{font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chart-canvas-wrap{position:relative;min-height:260px}
+@media(max-width:700px){.chart-grid{grid-template-columns:1fr}.chart-canvas-wrap{min-height:240px}}
+.chart-canvas-wrap canvas{cursor:zoom-in}
+.chart-zoom-modal{background:transparent;box-shadow:none;max-width:min(96vw,1000px);max-height:92vh;overflow:visible}
+.chart-zoom-modal .close-btn{position:absolute;top:-10px;right:-10px;background:#fff;border:1px solid var(--gray2);border-radius:999px;width:40px;height:40px;box-shadow:var(--shadow-md)}
+.chart-zoom-card{background:#fff;border:1px solid var(--gray2);border-radius:14px;padding:14px;box-shadow:var(--shadow-md)}
+.chart-zoom-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px}
+.chart-zoom-wrap{position:relative;width:min(92vw,960px);height:min(72vh,560px)}
+
+body.font-adjust-enabled :is(.modal-header h2,.field label,input,select,textarea,.btn,.btn-sm,.btn-icon,#app-header h1,#app-header h1 small,#user-label,#btn-logout,.nav-month,#search-input,#search-result p,.search-line-bubble pre,.chief-card h3,.chief-card p,.cal-head,.cal-date,.holiday-label,.opd-entry,.opd-sub,.elective-card-header h3,table.elective-table,table.elective-table th,.badge,.tab,#toast,.section-hint,.empty-state,.ward-btn,.tpl-card h4,.tpl-card p,.tpl-preview,.var-chip){
+  font-size:calc(var(--base-font-size, 14px) + var(--font-bump))!important;
+}
+body.font-adjust-enabled .modal-header h2{--base-font-size:16px}
+body.font-adjust-enabled .field label{--base-font-size:12px}
+body.font-adjust-enabled input,body.font-adjust-enabled select,body.font-adjust-enabled textarea{--base-font-size:14px}
+body.font-adjust-enabled .btn{--base-font-size:13px}
+body.font-adjust-enabled .btn-sm{--base-font-size:12px}
+body.font-adjust-enabled .btn-icon{--base-font-size:15px}
+body.font-adjust-enabled #app-header h1{--base-font-size:16px}
+body.font-adjust-enabled #app-header h1 small{--base-font-size:11px}
+body.font-adjust-enabled #user-label,body.font-adjust-enabled #btn-logout{--base-font-size:12px}
+body.font-adjust-enabled .nav-month{--base-font-size:15px}
+body.font-adjust-enabled #search-input,body.font-adjust-enabled .search-line-bubble pre{--base-font-size:14px}
+body.font-adjust-enabled #search-result p{--base-font-size:12px}
+body.font-adjust-enabled .chief-card h3{--base-font-size:13px}
+body.font-adjust-enabled .chief-card p{--base-font-size:12px}
+body.font-adjust-enabled .cal-head{--base-font-size:11px}
+body.font-adjust-enabled .cal-date{--base-font-size:11px}
+body.font-adjust-enabled .holiday-label{--base-font-size:9px}
+body.font-adjust-enabled .opd-entry{--base-font-size:11px}
+body.font-adjust-enabled .opd-sub{--base-font-size:10px}
+body.font-adjust-enabled .elective-card-header h3{--base-font-size:14px}
+body.font-adjust-enabled table.elective-table{--base-font-size:13px}
+body.font-adjust-enabled table.elective-table th{--base-font-size:11px}
+body.font-adjust-enabled .badge{--base-font-size:11px}
+body.font-adjust-enabled .tab{--base-font-size:13px}
+body.font-adjust-enabled #toast{--base-font-size:13px}
+body.font-adjust-enabled .section-hint{--base-font-size:12px}
+body.font-adjust-enabled .empty-state{--base-font-size:14px}
+body.font-adjust-enabled .ward-btn{--base-font-size:13px}
+body.font-adjust-enabled .tpl-card h4{--base-font-size:12px}
+body.font-adjust-enabled .tpl-card p{--base-font-size:11px}
+body.font-adjust-enabled .tpl-preview{--base-font-size:12px}
+body.font-adjust-enabled .var-chip{--base-font-size:10px}
+
+/* ── Mobile readability ── */
+@media(max-width:600px){
+  body{font-size:16px}
+  .overlay{padding:10px}
+  .modal{max-height:94vh;border-radius:14px}
+  .modal-header{padding:16px 16px 12px}
+  .modal-header h2{font-size:18px}
+  .modal-body{padding:16px}
+  .modal-footer{padding:12px 16px;gap:10px;flex-wrap:wrap}
+  .close-btn{font-size:24px;padding:6px 8px}
+  .field{margin-bottom:16px}
+  .field label{font-size:13px;letter-spacing:.25px}
+  input[type=text],input[type=date],input[type=password],select,textarea{font-size:16px;padding:11px 12px}
+  .btn{font-size:14px;min-height:42px;padding:10px 14px}
+  .btn-sm{font-size:13px;min-height:36px;padding:8px 12px}
+  .btn-icon{font-size:18px;min-width:38px;min-height:38px}
+
+  #app-header{height:auto;min-height:58px;padding:8px 12px;gap:10px}
+  #app-header h1{font-size:17px}
+  #app-header h1 small{font-size:12px}
+  #user-label,#btn-logout{font-size:13px}
+  #toolbar{top:58px;padding:8px 10px;gap:6px}
+  .nav-month{font-size:16px}
+  .nav-month button{font-size:18px;min-width:36px;min-height:34px}
+  #main{padding:10px}
+
+  #search-bar{padding:10px;gap:6px}
+  #search-hint{font-size:13px;margin-bottom:8px}
+  #search-input{font-size:16px;min-width:180px}
+  #search-result{padding:14px}
+  #search-result p{font-size:14px!important}
+  .search-line-bubble{padding:12px;max-height:60vh}
+  .search-line-bubble pre{font-size:15px;line-height:1.8}
+
+  .section-hint{font-size:14px;padding:10px 12px}
+  .chief-card{padding:14px}
+  .chief-card h3{font-size:15px}
+  .chief-card p{font-size:14px}
+
+  .cal-head{font-size:12px;padding:8px 2px;letter-spacing:0}
+  .cal-cell{min-height:78px;padding:5px 3px}
+  .cal-date{font-size:13px;margin-bottom:3px}
+  .cal-date.today{font-size:14px}
+  .holiday-label{font-size:10px;line-height:1.25}
+  .opd-entry{font-size:12px;padding:4px 5px;line-height:1.35}
+  .opd-sub{font-size:11px}
+  .cal-add-btn{width:26px;height:26px;font-size:16px}
+
+  .elective-card-header{padding:12px;gap:8px;flex-wrap:wrap}
+  .elective-card-header h3{font-size:16px}
+  table.elective-table{font-size:14px}
+  table.elective-table th{font-size:12px;padding:8px 6px}
+  table.elective-table td{padding:10px 6px}
+  .badge{font-size:12px}
+  .empty-state{font-size:15px;padding:24px 12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOADER ── -->
+<div id="loader"><div class="spinner"></div><div style="font-size:14px;color:var(--gray4)">กำลังโหลด...</div></div>
+
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<!-- ════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════ -->
+
+<!-- Login -->
+<div class="overlay" id="modal-login">
+  <div class="modal">
+    <div style="text-align:center;padding:24px 24px 0">
+      <img src="SI_HEMATO.jpg" alt="Siriraj Hematology" title="กดเพื่อขยาย" onclick="openLogoModal()" style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:12px;cursor:zoom-in">
+      <h2 style="font-size:18px;color:var(--navy);margin-bottom:4px">HSOS Calendar</h2>
+      <p style="font-size:13px;color:var(--gray4)">Hematology Smart Onboarding System (Siriraj Hematology)</p>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button class="btn btn-outline" style="flex:1" onclick="loginAsViewer()">👁️ ดูตาราง (Viewer)</button>
+        <button class="btn btn-primary" style="flex:1" onclick="showLoginForm()">🔓 เข้าสู่ระบบ</button>
+      </div>
+      <div id="login-form" style="display:none">
+        <div class="field"><label>ชื่อผู้ใช้ <span class="req">*</span></label>
+          <input type="text" id="login-name" placeholder="ชื่อที่ตั้งไว้ในระบบ"></div>
+        <div class="field"><label>PIN <span class="req">*</span></label>
+          <input type="password" id="login-pin" placeholder="PIN 4-6 หลัก" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div id="login-err" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">เข้าสู่ระบบ</button>
+      </div>
+      <p style="font-size:11px;color:var(--gray3);text-align:center;margin-top:12px">จัดการผู้ใช้ได้ใน Settings</p>
+    </div>
+  </div>
+</div>
+
+<!-- OPD Entry -->
+<div class="overlay" id="modal-opd">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-opd-title">📝 บันทึก OPD</h2>
+      <button class="close-btn" onclick="closeModal('modal-opd')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="opd-id">
+      <input type="hidden" id="opd-date">
+      <div class="field"><label>📅 วันที่</label><input type="text" id="opd-date-display" readonly style="background:var(--gray1)"></div>
+      <!-- วันหยุด (แยกกล่องคนละส่วน) -->
+      <div id="opd-holiday-section" style="background:#fff;border:1px solid var(--gray2);border-radius:12px;padding:12px 12px 10px;margin:10px 0 14px">
+        <div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">🎌 วันหยุด (ไม่มี OPD)</div>
+        <div id="opd-holiday-info" style="display:none;background:var(--gold2);border-radius:6px;padding:8px 12px;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--gold)">🎌 วันนี้เป็นวันหยุด: <strong id="opd-holiday-name-display"></strong></span>
+          <button class="btn btn-sm" style="float:right;background:none;color:var(--red);padding:2px 8px;font-size:11px" id="btn-remove-holiday-opd" onclick="removeHolidayFromOPD()">✕ ยกเลิกวันหยุด</button>
+        </div>
+        <div id="opd-holiday-add" style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;color:var(--gray4);white-space:nowrap">📌 ตั้งเป็นวันหยุด:</span>
+          <input type="text" id="opd-holiday-name" placeholder="ชื่อวันหยุด เช่น วันหยุดชดเชย" style="flex:1;padding:6px 10px;font-size:12px">
+          <button class="btn btn-outline btn-sm" onclick="addHolidayFromOPD()" style="white-space:nowrap">+ เพิ่ม</button>
+        </div>
+      </div>
+
+      <!-- ฟอร์ม OPD (ซ่อนเมื่อเป็นวันหยุด) -->
+      <div id="opd-main-section">
+        <div class="two-col">
+          <div class="field"><label>👨‍⚕️ อาจารย์ที่ออก OPD <span class="req">*</span></label>
+            <select id="opd-supervisor"><option value="">— เลือก —</option></select></div>
+          <div class="field"><label>🩺 ประเภท OPD</label>
+            <select id="opd-mode" onchange="updateOPDModeUI()">
+              <option value="sit">นั่งกับอาจารย์</option>
+              <option value="solo">ตรวจเอง</option>
+            </select></div>
+        </div>
+        <div class="field"><label>👥 แพทย์ Elective ที่ออกด้วย</label>
+          <div id="opd-elective-checklist" class="multi-select" style="background:#fff;border:1px solid var(--gray2);border-radius:8px;padding:8px;overflow:auto"></div>
+          <p style="font-size:11px;color:var(--gray4);margin-top:4px">ติ๊กเลือกได้ไม่จำกัด (ไม่ต้องกด Ctrl)</p></div>
+        <div class="field"><label>📝 หมายเหตุ</label>
+          <textarea id="opd-notes" rows="2" placeholder="ไม่จำเป็น"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="btn-delete-opd" style="margin-right:auto;display:none" onclick="deleteOPD()">🗑️ ลบ</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-opd')">ยกเลิก</button>
+      <button class="btn btn-success" id="btn-save-opd" onclick="saveOPD()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPD Day List -->
+<div class="overlay" id="modal-opd-day">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-opd-day-title">🏥 รายการ OPD</h2>
+      <button class="close-btn" onclick="closeModal('modal-opd-day')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="opd-day-date">
+      <div id="opd-day-holiday-section" style="background:#fff;border:1px solid var(--gray2);border-radius:12px;padding:12px 12px 10px;margin:0 0 14px">
+        <div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">🎌 วันหยุด (ไม่มี OPD)</div>
+        <div id="opd-day-holiday-info" style="display:none;background:var(--gold2);border-radius:6px;padding:8px 12px;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--gold)">🎌 วันนี้เป็นวันหยุด: <strong id="opd-day-holiday-name-display"></strong></span>
+          <button type="button" class="btn btn-sm" style="float:right;background:none;color:var(--red);padding:2px 8px;font-size:11px" id="btn-remove-holiday-opd-day" onclick="removeHolidayFromOPDDay()">✕ ยกเลิกวันหยุด</button>
+        </div>
+        <div id="opd-day-holiday-add" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--gray4);white-space:nowrap">ตั้งเป็นวันหยุด:</span>
+          <input type="text" id="opd-day-holiday-name" placeholder="ชื่อวันหยุด เช่น วันหยุดชดเชย" style="flex:1;min-width:140px;padding:6px 10px;font-size:12px">
+          <button type="button" class="btn btn-outline btn-sm" onclick="addHolidayFromOPDDay()" style="white-space:nowrap">ตั้งวันหยุด</button>
+        </div>
+      </div>
+      <div id="opd-day-opd-block">
+        <div id="opd-day-list" style="min-height:80px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-opd-day')">ปิด</button>
+      <button type="button" class="btn btn-primary" id="btn-opd-day-add" onclick="openOPDNewFromDay()">+ เพิ่มรายการ OPD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Elective Detail (read-only) -->
+<div class="overlay" id="modal-elective-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-elective-detail-title">🧑‍⚕️ รายละเอียดแพทย์ Elective</h2>
+      <button class="close-btn" onclick="closeModal('modal-elective-detail')">×</button>
+    </div>
+    <div class="modal-body">
+      <pre id="elective-detail-text" class="detail-pre"></pre>
+    </div>
+    <div class="modal-footer detail-actions">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-elective-detail')">ปิด</button>
+      <button type="button" class="btn btn-success" onclick="copyElectiveDetail()">📋 คัดลอก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Elective -->
+<div class="overlay" id="modal-elective">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-elective-title">➕ เพิ่มแพทย์ Elective</h2>
+      <button class="close-btn" onclick="closeModal('modal-elective')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="el-id">
+      <div class="two-col">
+        <div class="field"><label>👤 ชื่อ <span class="req">*</span></label>
+          <input type="text" id="el-first" placeholder="ชื่อ (ไม่ต้องใส่ นพ./พญ.)"></div>
+        <div class="field"><label>👤 นามสกุล <span class="req">*</span></label>
+          <input type="text" id="el-last" placeholder="นามสกุล"></div>
+        <div class="field"><label>🏥 สังกัด</label>
+          <input type="text" id="el-from" placeholder="ต้นสังกัด"></div>
+      </div>
+      <input type="hidden" id="el-name">
+      <div class="field"><label>📊 ระดับ</label>
+        <select id="el-level">
+          <option value="">— เลือก —</option>
+          <option value="นศพ.ปี3">นศพ.ปี3</option>
+          <option value="นศพ.ปี4">นศพ.ปี4</option>
+          <option value="นศพ.ปี5">นศพ.ปี5</option>
+          <option value="Extern">Extern</option>
+          <option value="Intern">Intern</option>
+          <option value="แพทย์พี่เลี้ยง">แพทย์พี่เลี้ยง</option>
+          <option value="Resident-Med">Resident-Med</option>
+          <option value="Resident-Hemato">Resident-Hemato</option>
+          <option value="Fellow-Hemato">Fellow-Hemato</option>
+        </select></div>
+      <div class="field">
+        <label>📅 ช่วงที่ 1 <span class="req">*</span></label>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="date" id="el-start1" style="flex:1">
+          <span style="line-height:37px;color:var(--gray4);font-size:13px">ถึง</span>
+          <input type="date" id="el-end1" style="flex:1">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="fillRange(1)">ใส่ในช่องด้านบน</button>
+      </div>
+      <div class="field"><label>🏥 Round ward ช่วงที่ 1</label>
+        <div class="ward-btn-group">
+          <button class="ward-btn active" id="ward1-male" onclick="setWard(1,'วอร์ดชาย')">👨 วอร์ดชาย</button>
+          <button class="ward-btn" id="ward1-female" onclick="setWard(1,'วอร์ดหญิง')">👩 วอร์ดหญิง</button>
+        </div>
+        <input type="hidden" id="el-ward1" value="วอร์ดชาย">
+      </div>
+      <div class="field">
+        <label>📅 ช่วงที่ 2 (ถ้ามี)</label>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="date" id="el-start2" style="flex:1">
+          <span style="line-height:37px;color:var(--gray4);font-size:13px">ถึง</span>
+          <input type="date" id="el-end2" style="flex:1">
+        </div>
+      </div>
+      <div class="field"><label>🏥 Round ward ช่วงที่ 2</label>
+        <div class="ward-btn-group">
+          <button class="ward-btn" id="ward2-male" onclick="setWard(2,'วอร์ดชาย')">👨 วอร์ดชาย</button>
+          <button class="ward-btn active" id="ward2-female" onclick="setWard(2,'วอร์ดหญิง')">👩 วอร์ดหญิง</button>
+        </div>
+        <input type="hidden" id="el-ward2" value="วอร์ดหญิง">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" id="btn-soft-delete-elective" style="margin-right:auto;display:none;color:var(--red);border-color:var(--red)" onclick="softDeleteElective()">ซ่อนรายการ</button>
+      <button class="btn btn-danger btn-sm" id="btn-hard-delete-elective" style="display:none" onclick="hardDeleteElective()">ลบถาวร</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-elective')">ยกเลิก</button>
+      <button class="btn btn-success" id="btn-save-elective" onclick="saveElective()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage data -->
+<div class="overlay" id="modal-manage">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>⚙️ จัดการข้อมูล</h2>
+      <button class="close-btn" onclick="closeModal('modal-manage')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchTab('tab-sup')">👨‍⚕️ อาจารย์</button>
+        <button class="tab" onclick="switchTab('tab-elc')">🧑‍⚕️ Elective</button>
+        <button class="tab" onclick="switchTab('tab-res')">👑 Resident/Fellow</button>
+        <button class="tab" onclick="switchTab('tab-archive')">🗄️ Archive</button>
+      </div>
+      <!-- Supervisors -->
+      <div class="tab-panel active" id="tab-sup">
+        <p style="font-size:12px;color:var(--gray4);margin-bottom:10px">รายชื่อที่เพิ่มจะปรากฏใน dropdown OPD</p>
+        <div id="sup-list" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="new-sup-name" placeholder="ชื่ออาจารย์" style="flex:1">
+          <button class="btn btn-primary btn-sm" onclick="addSupervisor()">+ เพิ่ม</button>
+        </div>
+      </div>
+      <!-- Elective list -->
+      <div class="tab-panel" id="tab-elc">
+        <p style="font-size:12px;color:var(--gray4);margin-bottom:10px">รายชื่อที่เพิ่มจะปรากฏใน dropdown เมื่อกรอก OPD</p>
+        <div id="elc-list" style="margin-bottom:12px"></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddElective()">+ เพิ่มแพทย์ใหม่</button>
+      </div>
+      <!-- Resident/Fellow -->
+      <div class="tab-panel" id="tab-res">
+        <p style="font-size:12px;color:var(--gray4);margin-bottom:10px">ใช้เลือก Chief Resident สำหรับวอร์ด</p>
+        <div id="res-list" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="new-res-name" placeholder="ชื่อ Resident/Fellow" style="flex:1;min-width:180px">
+          <input type="text" id="new-res-line" placeholder="LINE ID เช่น @chief หรือ https://line.me/..." style="flex:1;min-width:220px">
+          <select id="new-res-type" style="width:130px">
+            <option value="Resident 3">Resident 3</option>
+            <option value="Fellow">Fellow</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="addResident()">+ เพิ่ม</button>
+        </div>
+      </div>
+      <!-- Archive tab -->
+      <div class="tab-panel" id="tab-archive">
+        <p style="font-size:12px;color:var(--gray4);margin-bottom:12px">เก็บสถิติ แล้ว Hard Delete ข้อมูล Elective + OPD ของเดือนที่เลือก เพื่อประหยัดพื้นที่ Turso</p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;white-space:nowrap">เลือกเดือน:</label>
+          <input type="month" id="archive-month" style="flex:1;padding:6px 10px">
+          <button class="btn btn-outline btn-sm" onclick="previewArchive()">🔍 ดูตัวอย่าง</button>
+        </div>
+        <div id="archive-preview" style="display:none;background:var(--gray1);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+          <div id="archive-preview-content"></div>
+        </div>
+        <button class="btn btn-danger btn-sm" id="btn-archive-delete" style="display:none" onclick="executeArchiveDelete()">🗑️ เก็บสถิติ & ลบทั้งหมด</button>
+
+        <div style="border-top:1px dashed var(--gray2);margin-top:20px;padding-top:16px">
+          <h4 style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📊 สถิติ Elective ย้อนหลัง</h4>
+          <div id="archive-stats-list" style="font-size:12px;color:var(--gray4)">กด "โหลดสถิติ" เพื่อดู</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="loadArchiveStats()">📊 โหลดสถิติ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Chief -->
+<div class="overlay" id="modal-chief">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="chief-modal-title">✏️ แก้ไข Chief / Supervise</h2>
+      <button class="close-btn" onclick="closeModal('modal-chief')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="chief-ward-code">
+      <div class="field"><label>👑 Chief Resident</label>
+        <select id="chief-name-sel"><option value="">— เลือก —</option></select></div>
+      <div class="field" id="chief-line-field">
+        <label>LINE ID: <span id="chief-line-display" style="font-weight:400;color:var(--teal)">—</span></label>
+      </div>
+      <div class="field"><label>👨‍⚕️ Supervise โดย (Ctrl/Shift เพื่อเลือกหลายคน)</label>
+        <select id="chief-sup-sel" multiple class="multi-select"></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-chief')">ยกเลิก</button>
+      <button class="btn btn-success" onclick="saveChief()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Users -->
+<div class="overlay" id="modal-users">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>👥 จัดการผู้ใช้</h2>
+      <button class="close-btn" onclick="closeModal('modal-users')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--gray4);margin-bottom:12px">admin — ทำได้ทุกอย่าง · editor — กรอก/แก้ไข OPD</p>
+      <div id="user-list" style="margin-bottom:12px"></div>
+      <div style="border:1px solid var(--gray2);border-radius:var(--radius-sm);padding:12px">
+        <p style="font-size:12px;font-weight:600;color:var(--gray4);margin-bottom:10px">+ เพิ่มผู้ใช้ใหม่</p>
+        <div class="two-col">
+          <div class="field"><label>ชื่อ</label><input type="text" id="new-user-name"></div>
+          <div class="field"><label>PIN</label><input type="text" id="new-user-pin"></div>
+        </div>
+        <div class="field"><label>Role</label>
+          <select id="new-user-role"><option value="editor">editor</option><option value="admin">admin</option></select></div>
+        <button class="btn btn-primary btn-sm" onclick="addUser()">+ เพิ่ม</button>
+      </div>
+      <div style="border-top:1px solid var(--gray2);margin-top:16px;padding-top:14px">
+        <p style="font-size:12px;font-weight:600;color:var(--gray4);margin-bottom:10px">🔑 เปลี่ยน PIN ของฉัน</p>
+        <div class="three-col">
+          <input type="password" id="pin-old" placeholder="PIN เดิม">
+          <input type="password" id="pin-new" placeholder="PIN ใหม่">
+          <button class="btn btn-outline btn-sm" onclick="changePin()">เปลี่ยน</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════ -->
+<header id="app-header">
+  <img id="app-logo" src="SI_HEMATO.jpg" alt="Siriraj Hematology" title="กดเพื่อขยาย" onclick="openLogoModal()">
+  <h1>HSOS Calendar <small>Hematology Smart Onboarding System (Siriraj Hematology)</small></h1>
+  <span id="user-label"></span>
+  <button id="btn-logout" onclick="logout()" style="display:none">ออกจากระบบ</button>
+</header>
+
+<!-- Logo Zoom -->
+<div class="overlay" id="modal-logo" onclick="closeLogoModal()">
+  <div class="modal logo-modal" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeLogoModal()" aria-label="ปิด">×</button>
+    <img src="SI_HEMATO.jpg" alt="Siriraj Hematology Logo">
+  </div>
+</div>
+
+<div id="toolbar">
+  <div class="nav-month">
+    <button onclick="prevMonth()">‹</button>
+    <span id="month-label">พ.ค. 2569</span>
+    <button onclick="nextMonth()">›</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <button class="btn btn-primary btn-sm" id="btn-login-admin" style="display:none" onclick="openAdminLogin()">🔓 เข้าสู่ระบบ</button>
+  <div class="toolbar-sep" id="sep-login-admin" style="display:none"></div>
+  <div style="display:none">
+    <input id="backend-url" type="text" />
+  </div>
+  <button class="btn btn-outline btn-sm" onclick="downloadPDF()" title="พิมพ์ / บันทึกเป็น PDF">🖨️ PRINT</button>
+  <a id="btn-manual" href="#" target="_blank" class="btn btn-outline btn-sm">📘 คู่มือ</a>
+  <a id="btn-manual-web" href="https://prhdev222.github.io/elective-activity/" target="_blank" rel="noopener" class="btn btn-outline btn-sm" title="คู่มือแบบเว็บ">🌐 คู่มือ (WEB)</a>
+  <div class="font-controls" aria-label="ปรับขนาดตัวอักษร">
+    <button type="button" class="font-sm" id="font-size-sm" onclick="setFontSizePreference('sm')" title="ตัวอักษรเล็ก">A-</button>
+    <button type="button" class="font-md" id="font-size-md" onclick="setFontSizePreference('md')" title="ตัวอักษรปกติ">A</button>
+    <button type="button" class="font-lg" id="font-size-lg" onclick="setFontSizePreference('lg')" title="ตัวอักษรใหญ่">A+</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <button class="btn btn-outline btn-sm" id="btn-manage" style="display:none" onclick="openModal('modal-manage');loadManageData()">⚙️ จัดการข้อมูล</button>
+  <button class="btn btn-outline btn-sm" id="btn-users" style="display:none" onclick="openModal('modal-users');loadUsers()">👥 ผู้ใช้</button>
+  <button class="btn btn-outline btn-sm" id="btn-linebot" style="display:none" onclick="openLineBotModal()">💬 LINE Bot</button>
+  <button class="btn btn-outline btn-sm" id="btn-stats" style="display:none" onclick="openStatsModal()">📊 สถิติ</button>
+</div>
+
+<div id="main">
+
+  <!-- Search (form = กด Enter ส่งเหมือนปุ่มค้นหา รองรับ IME ไทยได้ดีกว่าแค่ keydown เดียว) -->
+  <div id="search-hint">พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วกดค้นหาหรือ Enter เพื่อดูสิ่งที่ต้องทำ/กิจกรรมต่อไป</div>
+  <form id="search-bar" role="search" autocomplete="off" onsubmit="event.preventDefault(); runElectiveSearchNow();">
+    <span style="font-size:16px">🔎</span>
+    <input type="text" name="q" id="search-input" enterkeyhint="search" autocomplete="off"
+           placeholder="พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วกดค้นหาหรือ Enter… เพื่อดูสิ่งที่ต้องทำ/กิจกรรมต่อไป" oninput="doSearchDebounced(this.value)">
+    <button type="submit" class="btn btn-primary btn-sm" id="btn-search-submit" title="ค้นหา">ค้นหา ↵</button>
+    <button type="button" class="btn-icon" onclick="clearSearch()" title="ล้าง">×</button>
+  </form>
+  <div id="search-result" style="display:none">
+    <button type="button" class="close-search" onclick="clearSearch()">×</button>
+    <p style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px;margin-right:36px">พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วระบบจะแสดงกิจกรรม/สิ่งที่ต้องทำต่อไป (คัดลอกส่งต่อได้)</p>
+    <div class="search-line-bubble"><pre id="search-preview"></pre></div>
+    <button type="button" class="btn btn-success btn-sm" style="margin-top:12px;font-weight:600" onclick="copyPreview()">📋 คัดลอกข้อความทั้งก้อน</button>
+  </div>
+
+  <!-- Chief cards -->
+  <div class="chief-row">
+    <div class="chief-card chief-card-male">
+      <h3>♂ วอร์ดชาย
+        <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-male" style="display:none" onclick="openChiefModal('male')">✏️ แก้ไข</button>
+      </h3>
+      <p><strong>Chief:</strong> <span id="chief-male-name">—</span></p>
+      <p><strong>Supervise:</strong> <span id="chief-male-sup">—</span></p>
+    </div>
+    <div class="chief-card chief-card-female">
+      <h3>♀ วอร์ดหญิง
+        <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-female" style="display:none" onclick="openChiefModal('female')">✏️ แก้ไข</button>
+      </h3>
+      <p><strong>Chief:</strong> <span id="chief-female-name">—</span></p>
+      <p><strong>Supervise:</strong> <span id="chief-female-sup">—</span></p>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="calendar-card">
+    <div class="section-hint">ด้านบน = Chief/Supervise ตามวอร์ด · ปฏิทินด้านล่าง = OPD รายวัน · <strong>คลิกวันที่เพื่อกรอก/แก้ไข OPD</strong></div>
+    <div class="cal-grid" id="cal-head">
+      <div class="cal-head">จันทร์</div>
+      <div class="cal-head">อังคาร</div>
+      <div class="cal-head">พุธ</div>
+      <div class="cal-head">พฤหัส</div>
+      <div class="cal-head">ศุกร์</div>
+      <div class="cal-head weekend">เสาร์</div>
+      <div class="cal-head weekend">อาทิตย์</div>
+    </div>
+    <div class="cal-grid" id="cal-body"></div>
+  </div>
+
+  <!-- Elective table -->
+  <div class="elective-card">
+    <div class="elective-card-header">
+      <h3>📋 แพทย์ Elective — <span id="elective-month-label"></span></h3>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-outline btn-sm" id="btn-toggle-completed" onclick="toggleCompletedElectives()" style="font-size:11px">👁️ แสดงที่จบแล้ว</button>
+        <span id="completed-count" style="font-size:11px;color:var(--gray3)"></span>
+        <button class="btn btn-primary btn-sm" id="btn-add-elective" style="display:none" onclick="openAddElective()">+ เพิ่มแพทย์ Elective</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="elective-table">
+        <thead><tr>
+          <th>ชื่อ / สังกัด</th><th>ระดับ</th><th>Round Ward</th><th>OPD ที่ได้รับ</th><th>สถานะ</th><th></th>
+        </tr></thead>
+        <tbody id="elective-tbody"><tr><td colspan="6" class="empty-state">ไม่มีข้อมูล</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+
+<!-- Stats Modal -->
+<div class="overlay" id="modal-stats">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>📊 สถิติ Elective</h2>
+      <button class="close-btn" onclick="closeModal('modal-stats')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-bar" style="margin-top:-6px">
+        <button class="tab active" onclick="switchStatsTab('stats-report')">🧾 รายงาน (Filter/Print/CSV)</button>
+        <button class="tab" onclick="switchStatsTab('stats-summary')">📊 สรุปจำนวน</button>
+      </div>
+
+      <div id="stats-report" class="tab-panel active">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+          <div class="field" style="margin:0;min-width:180px">
+            <label>ช่วงเวลา</label>
+            <select id="report-mode" onchange="syncReportModeUI();updateElectiveReport()">
+              <option value="month">รายเดือน</option>
+              <option value="year">รายปี</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label>ปี</label>
+            <select id="report-year" onchange="updateElectiveReport()"></select>
+          </div>
+          <div class="field" id="report-month-field" style="margin:0;min-width:150px">
+            <label>เดือน</label>
+            <select id="report-month" onchange="updateElectiveReport()"></select>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray4);margin-bottom:6px">
+            <input type="checkbox" id="report-include-period2" checked onchange="updateElectiveReport()">
+            รวมช่วงที่ 2 (ถ้ามี)
+          </label>
+          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-outline btn-sm" onclick="printElectiveReport()">🖨️ Print</button>
+            <button type="button" class="btn btn-success btn-sm" onclick="downloadElectiveReportCSV()">⬇️ CSV</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--gray2);border-radius:12px;padding:10px 12px;background:#fff;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">คอลัมน์ที่แสดง</div>
+          <div id="report-columns" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+        </div>
+
+        <div id="report-meta" style="font-size:12px;color:var(--gray4);margin-bottom:8px"></div>
+        <div style="overflow-x:auto">
+          <table class="elective-table" id="report-table">
+            <thead id="report-thead"></thead>
+            <tbody id="report-tbody"><tr><td class="empty-state">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="stats-summary" class="tab-panel">
+        <p style="font-size:12px;color:var(--gray4);margin-bottom:12px">สรุปจำนวน Elective ที่มาดูงาน แยกตามเดือน (จากข้อมูลที่ Archive แล้ว + ข้อมูลปัจจุบัน)</p>
+        <div id="stats-summary-content" style="min-height:100px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+            <div class="field" style="margin:0;min-width:160px">
+              <label>ปี (กราฟแท่ง)</label>
+              <select id="dash-year" onchange="renderStatsDashboard()"></select>
+            </div>
+            <div class="field" style="margin:0;min-width:180px">
+              <label>เดือน (กราฟวงกลม)</label>
+              <select id="dash-month" onchange="renderStatsDashboard()"></select>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-outline btn-sm" onclick="printStatsSummary()">🖨️ Print</button>
+            </div>
+          </div>
+
+          <div class="chart-grid" style="margin-bottom:12px">
+            <div class="chart-card">
+              <div class="chart-title">
+                <span>🟣 สัดส่วนระดับแพทย์ (เดือนที่เลือก)</span>
+                <span id="dash-pie-meta" style="font-size:11px;color:var(--gray4);font-weight:600"></span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-level-pie"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">
+                <span>🟦 จำนวน Elective รายเดือน (ปีที่เลือก)</span>
+                <span id="dash-bar-meta" style="font-size:11px;color:var(--gray4);font-weight:600"></span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-month-bar"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="stats-month-cards">
+            <p class="empty-state">กำลังโหลด...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart Zoom -->
+<div class="overlay" id="modal-chart-zoom" onclick="closeChartZoom()">
+  <div class="modal chart-zoom-modal" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeChartZoom()" aria-label="ปิด">×</button>
+    <div class="chart-zoom-card">
+      <div id="chart-zoom-title" class="chart-zoom-title">กราฟ</div>
+      <div class="chart-zoom-wrap">
+        <canvas id="chart-zoom-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINE Bot Template Editor -->
+<div class="overlay" id="modal-linebot">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>💬 ตั้งค่าข้อความ LINE Bot</h2>
+      <button class="close-btn" onclick="closeModal('modal-linebot')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-hint" style="margin:-20px -20px 16px;border-radius:0">
+        <strong>ตัวแปรที่ใช้ได้:</strong>
+        <span class="var-chip" title="ชื่อแพทย์">{{name}}</span>
+        <span class="var-chip" title="ประเภท/ระดับ">{{type}}</span>
+        <span class="var-chip" title="ช่วงที่ 1 วันที่">{{period1_dates}}</span>
+        <span class="var-chip" title="วอร์ดช่วงที่ 1">{{ward1}}</span>
+        <span class="var-chip" title="ช่วงที่ 2 วันที่">{{period2_dates}}</span>
+        <span class="var-chip" title="วอร์ดช่วงที่ 2">{{ward2}}</span>
+        <span class="var-chip" title="ชื่อ Chief 1">{{chief1_name}}</span>
+        <span class="var-chip" title="LINE ID Chief 1">{{chief1_link}}</span>
+        <span class="var-chip" title="สรุปบล็อคช่วงที่ 1 (Elective Reply)">{{period1_block}}</span>
+        <span class="var-chip" title="สรุปบล็อคช่วงที่ 2 (Elective Reply)">{{period2_block}}</span>
+        <span class="var-chip" title="ตาราง OPD block">{{opd_block}}</span>
+        <span class="var-chip" title="URL คู่มือ PDF">{{pdf_manual_url}}</span>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchLineBotTab('tpl-welcome')">🎉 ต้อนรับ</button>
+        <button class="tab" onclick="switchLineBotTab('tpl-elective-reply')">💬 Elective Reply</button>
+        <button class="tab" onclick="switchLineBotTab('tpl-period2')">📅 ช่วงที่ 2</button>
+        <button class="tab" onclick="switchLineBotTab('tpl-chief')">👑 Chief</button>
+        <button class="tab" onclick="switchLineBotTab('tpl-opd')">🏥 OPD</button>
+        <button class="tab" onclick="switchLineBotTab('tpl-settings')">⚙️ Settings</button>
+      </div>
+
+      <!-- Welcome Template -->
+      <div class="tab-panel active" id="tpl-welcome">
+        <div class="tpl-card">
+          <h4>ข้อความต้อนรับหลัก (bot_welcome)</h4>
+          <p>บอทจะตอบกลับข้อความนี้เมื่อ “พิมพ์ชื่อ-นามสกุล” แล้วจับคู่ได้กับตารางแพทย์ (doctors) — ไม่ได้ส่งตอน add เข้ากลุ่ม</p>
+          <textarea id="tpl-welcome-text" rows="10" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="previewTemplate('welcome')">👁️ Preview</button>
+        <div id="preview-welcome" class="tpl-preview" style="display:none"></div>
+      </div>
+
+      <!-- Elective Reply Template -->
+      <div class="tab-panel" id="tpl-elective-reply">
+        <div class="tpl-card">
+          <h4>ข้อความตอบกลับเมื่อพิมพ์ชื่อ Elective (bot_elective_reply)</h4>
+          <p>บอทจะตอบกลับข้อความนี้เมื่อพิมพ์ชื่อ Elective ในกลุ่ม (เป็น reply ไม่ใช่ greeting อัตโนมัติ)</p>
+          <textarea id="tpl-elective-reply-text" rows="8" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+        <div class="tpl-card" style="margin-top:10px">
+          <h4>Block ช่วงที่ 1 (Elective Reply) (bot_elective_period1_block)</h4>
+          <p>ใช้สร้าง <span class="var-chip">{{period1_block}}</span> (แก้ข้อความ “ติดต่อ Chief/ราวด์ด้วย” ได้ที่นี่)</p>
+          <textarea id="tpl-elc-p1-text" rows="4" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+        <div class="tpl-card" style="margin-top:10px">
+          <h4>Block ช่วงที่ 2 (Elective Reply) (bot_elective_period2_block)</h4>
+          <p>ใช้สร้าง <span class="var-chip">{{period2_block}}</span> (จะแสดงเมื่อมีช่วงที่ 2)</p>
+          <textarea id="tpl-elc-p2-text" rows="4" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="previewTemplate('elective-reply')">👁️ Preview</button>
+        <div id="preview-elective-reply" class="tpl-preview" style="display:none"></div>
+      </div>
+
+      <!-- Period 2 Block -->
+      <div class="tab-panel" id="tpl-period2">
+        <div class="tpl-card">
+          <h4>Block ช่วงที่ 2 (bot_period2_block)</h4>
+          <p>แสดงเมื่อแพทย์มีช่วงที่ 2 ในตาราง</p>
+          <textarea id="tpl-period2-text" rows="4" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+      </div>
+
+      <!-- Chief Block -->
+      <div class="tab-panel" id="tpl-chief">
+        <div class="tpl-card">
+          <h4>Block Chief ช่วงที่ 1 (bot_chief_block)</h4>
+          <textarea id="tpl-chief-text" rows="4" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+        <div class="tpl-card" style="margin-top:10px">
+          <h4>Block Chief ช่วงที่ 2 (bot_chief2_block)</h4>
+          <textarea id="tpl-chief2-text" rows="3" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+      </div>
+
+      <!-- OPD Blocks -->
+      <div class="tab-panel" id="tpl-opd">
+        <div class="tpl-card">
+          <h4>Block OPD จาก Calendar (bot_opd_calendar_block)</h4>
+          <p>ใช้ตัวแปร <span class="var-chip">{{opd_lines}}</span></p>
+          <textarea id="tpl-opd-cal-text" rows="3" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+        <div class="tpl-card" style="margin-top:10px">
+          <h4>Block OPD Fallback (bot_opd_fallback_block)</h4>
+          <p>ใช้เมื่อไม่มีตาราง OPD Calendar</p>
+          <textarea id="tpl-opd-fb-text" rows="3" style="font-family:monospace;font-size:12px;line-height:1.6"></textarea>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="tab-panel" id="tpl-settings">
+        <div class="tpl-card">
+          <h4>⚙️ ตั้งค่า LINE Bot</h4>
+          <div class="field" style="margin-top:8px">
+            <label>URL คู่มือ PDF</label>
+            <input type="text" id="setting-pdf-url" placeholder="https://drive.google.com/...">
+          </div>
+          <div class="field">
+            <label>LINE Group ID (บันทึกอัตโนมัติเมื่อบอทได้รับข้อความแรก)</label>
+            <input type="text" id="setting-group-id" placeholder="C..." readonly style="background:var(--gray1)">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="resetLineBotTemplates()">↺ รีเซ็ต Default</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-linebot')">ยกเลิก</button>
+      <button class="btn btn-success" onclick="saveLineBotTemplates()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+/** เก็บใน DB: เลิกนับเป็นวันนั้นเป็นวันหยุด (เปิดให้มี OPD ได้ แม้เดิมเป็นวันหยุดราชการ) */
+const HOLIDAY_OP_OVERRIDE = '__opd_override__';
+// ค่าเริ่มต้นเป็น Worker ที่ deploy แล้ว (แก้ได้ในกล่อง "Backend URL")
+const DEFAULT_WORKER_URL = 'https://hsos-worker.uradev222.workers.dev';
+function getWorkerUrl() {
+  return (localStorage.getItem('hsos_worker_url') || DEFAULT_WORKER_URL).replace(/\/+$/,'');
+}
+function setWorkerUrl(url) {
+  localStorage.setItem('hsos_worker_url', (url || '').trim().replace(/\/+$/,''));
+}
+
+const FONT_SIZE_STORAGE_KEY = 'hsos_font_size';
+const FONT_SIZE_BUMPS = { sm: '-1px', md: '0px', lg: '3px' };
+
+function applyFontSizePreference(size = 'md') {
+  const safeSize = FONT_SIZE_BUMPS[size] ? size : 'md';
+  document.documentElement.style.setProperty('--font-bump', FONT_SIZE_BUMPS[safeSize]);
+  if (document.body) document.body.classList.toggle('font-adjust-enabled', safeSize !== 'md');
+  ['sm','md','lg'].forEach(key => {
+    document.getElementById(`font-size-${key}`)?.classList.toggle('active', key === safeSize);
+  });
+}
+
+function setFontSizePreference(size) {
+  const safeSize = FONT_SIZE_BUMPS[size] ? size : 'md';
+  localStorage.setItem(FONT_SIZE_STORAGE_KEY, safeSize);
+  applyFontSizePreference(safeSize);
+  const label = safeSize === 'lg' ? 'ใหญ่' : safeSize === 'sm' ? 'เล็ก' : 'ปกติ';
+  toast(`ปรับตัวอักษรเป็นขนาด${label}แล้ว`, 'success');
+}
+
+// ── State ────────────────────────────────────────────────────
+let state = {
+  user: null,       // { id, name, role }
+  token: null,      // JWT
+  month: currentMonthStr(),  // YYYY-MM
+  calendar: [],     // OPD entries
+  supervisors: [],
+  electives: [],
+  chiefs: {},       // { male: {...}, female: {...} }
+  residents: [],
+  holidays: [],     // จาก DB: วันหยุดที่ admin เพิ่ม + แถว __opd_override__(เลิกนับวันหยุดราชการ)
+  publicSettings: [], // settings ที่เปิดให้ดูได้ (เช่น pdf_manual_url)
+};
+
+// ── Init ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  applyFontSizePreference(localStorage.getItem(FONT_SIZE_STORAGE_KEY) || 'md');
+
+  // เติมค่า backend url
+  const urlInput = document.getElementById('backend-url');
+  if (urlInput) urlInput.value = getWorkerUrl();
+
+  const saved = sessionStorage.getItem('hsos_token');
+  const savedUser = sessionStorage.getItem('hsos_user');
+  if (saved && savedUser) {
+    state.token = saved;
+    state.user = JSON.parse(savedUser);
+    onLoginSuccess();
+  } else if (sessionStorage.getItem('hsos_mode') === 'viewer') {
+    state.user = { id: 'public', name: 'Viewer', role: 'viewer' };
+    state.token = null;
+    onLoginSuccess();
+  } else {
+    openModal('modal-login');
+    hide('loader');
+  }
+});
+
+// ── Auth ─────────────────────────────────────────────────────
+function showLoginForm() {
+  show('login-form');
+}
+
+async function loginAsViewer() {
+  state.user = { id: 'public', name: 'Viewer', role: 'viewer' };
+  state.token = null;
+  sessionStorage.removeItem('hsos_token');
+  sessionStorage.removeItem('hsos_user');
+  sessionStorage.setItem('hsos_mode', 'viewer');
+  onLoginSuccess();
+}
+
+function openAdminLogin() {
+  openModal('modal-login');
+  showLoginForm();
+  setText('login-err','');
+  const nameEl = document.getElementById('login-name');
+  if (nameEl) nameEl.focus();
+}
+
+async function doLogin() {
+  const name = val('login-name');
+  const pin  = val('login-pin');
+  if (!name || !pin) { setText('login-err','กรุณากรอกชื่อและ PIN'); return; }
+  setText('login-err','');
+  try {
+    const res = await api({ action:'verify_login', name, pin });
+    if (!res.success) { setText('login-err', res.error || 'ชื่อหรือ PIN ไม่ถูกต้อง'); return; }
+    state.user  = res.user;
+    state.token = res.token;
+    sessionStorage.removeItem('hsos_mode');
+    sessionStorage.setItem('hsos_token', res.token);
+    sessionStorage.setItem('hsos_user', JSON.stringify(res.user));
+    onLoginSuccess();
+  } catch(e) { setText('login-err','เชื่อมต่อ Server ไม่ได้: ' + e.message); }
+}
+
+function onLoginSuccess() {
+  closeModal('modal-login');
+  updateHeader();
+  // Viewer mode: ให้มีปุ่มเข้า admin ได้จาก toolbar
+  if (state.user.role === 'viewer') {
+    show('btn-login-admin');
+    show('sep-login-admin');
+  } else {
+    hide('btn-login-admin');
+    hide('sep-login-admin');
+  }
+  if (state.user.role !== 'viewer') {
+    show('btn-logout');
+    show('btn-manage');
+    show('btn-add-elective');
+    showAll('.chief-edit-btn');
+    if (state.user.role === 'admin') { show('btn-users'); show('btn-linebot'); show('btn-stats'); }
+  }
+  loadPage();
+}
+
+function logout() {
+  sessionStorage.clear();
+  location.reload();
+}
+
+function saveBackendUrl() {
+  const v = (document.getElementById('backend-url')?.value || '').trim();
+  if (!v) { toast('กรุณาใส่ Backend URL','error'); return; }
+  setWorkerUrl(v);
+  toast('บันทึก Backend URL แล้ว ✓','success');
+  // reload data
+  loadPage();
+}
+
+function updateHeader() {
+  setText('user-label', state.user.name + (state.user.role !== 'viewer' ? ` (${state.user.role})` : ''));
+  if (state.user.role !== 'viewer') show('btn-logout');
+}
+
+// ── Load page data ───────────────────────────────────────────
+async function loadPage() {
+  show('loader');
+  try {
+    const m = state.month;
+    // ใช้ allSettled เพื่อให้แต่ละ request fail แยกกันได้โดยไม่หยุดทั้งหมด
+    const [calRes, supRes, elcRes, chiefRes, holRes, pubSetRes, crRes] = await Promise.allSettled([
+      apiGet(`action=calendar&month=${m}`),
+      apiGet(`action=supervisors`),
+      apiGet(`action=electives`),
+      apiGet(`action=chiefs&month=${m}`),
+      apiGet(`action=holidays&month=${m}`),
+      apiGet(`action=public_settings`),
+      apiGet(`action=chief_residents`),
+    ]);
+    state.calendar    = calRes.status === 'fulfilled'   ? (calRes.value.data   || []) : [];
+    state.supervisors = supRes.status === 'fulfilled'   ? (supRes.value.data   || []) : [];
+    state.electives   = elcRes.status === 'fulfilled'   ? (elcRes.value.data   || []) : [];
+    state.chiefs      = indexChiefs(chiefRes.status === 'fulfilled' ? (chiefRes.value.data || []) : []);
+    state.holidays    = holRes.status === 'fulfilled'   ? (holRes.value.data   || []) : [];
+    state.publicSettings = pubSetRes.status === 'fulfilled' ? (pubSetRes.value.data || []) : [];
+    state.residents   = crRes.status === 'fulfilled'    ? (crRes.value.data    || []) : [];
+    if (calRes.status === 'fulfilled' && calRes.value?.success === false) {
+      toast('โหลดปฏิทินไม่ได้: ' + (calRes.value.error || 'unknown error'), 'error');
+    }
+    applyManualLink();
+    renderAll();
+  } catch(e) { toast('โหลดข้อมูลไม่ได้: '+e.message,'error'); }
+  finally { hide('loader'); }
+}
+
+function applyManualLink() {
+  const btn = document.getElementById('btn-manual');
+  if (!btn) return;
+  const pdf = state.publicSettings.find(x => x.key === 'pdf_manual_url')?.value || '';
+  if (pdf && /^https?:\/\//i.test(pdf)) {
+    btn.href = pdf;
+    btn.style.pointerEvents = '';
+    btn.style.opacity = '1';
+    btn.title = 'เปิดคู่มือ';
+  } else {
+    btn.href = '#';
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '.55';
+    btn.title = 'ยังไม่ได้ตั้งค่าลิงก์คู่มือ (ให้ admin ไปที่ 💬 LINE Bot แล้วใส่ URL คู่มือ)';
+  }
+}
+
+function indexChiefs(list) {
+  const r = {};
+  list.forEach(c => { r[c.ward_code] = c; });
+  return r;
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderAll() {
+  renderMonthLabel();
+  renderChiefs();
+  renderCalendar();
+  renderElectiveTable();
+}
+
+function renderMonthLabel() {
+  const [y, m] = state.month.split('-').map(Number);
+  const buddistYear = y + 543;
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const monthsFull = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  setText('month-label', `${monthsTH[m]} ${buddistYear}`);
+  setText('elective-month-label', `${monthsFull[m]} ${buddistYear}`);
+}
+
+function renderChiefs() {
+  const male   = state.chiefs['male']   || {};
+  const female = state.chiefs['female'] || {};
+  setText('chief-male-name',   male.chief_name    || '—');
+  setText('chief-male-sup',    male.supervise_list  || '—');
+  setText('chief-female-name', female.chief_name   || '—');
+  setText('chief-female-sup',  female.supervise_list || '—');
+}
+
+// ── Thai Public Holidays + DB holidays ───────────────────────
+function getBuiltinHolidayMap(year) {
+  const fixed = [
+    { m:1,  d:1,  name:'วันขึ้นปีใหม่' },
+    { m:4,  d:6,  name:'วันจักรี' },
+    { m:4,  d:13, name:'สงกรานต์' },
+    { m:4,  d:14, name:'สงกรานต์' },
+    { m:4,  d:15, name:'สงกรานต์' },
+    { m:5,  d:1,  name:'วันแรงงาน' },
+    { m:5,  d:4,  name:'วันฉัตรมงคล' },
+    { m:6,  d:3,  name:'วันเฉลิมพระชนมพรรษา สมเด็จพระราชินี' },
+    { m:7,  d:28, name:'วันเฉลิมพระชนมพรรษา ร.10' },
+    { m:8,  d:12, name:'วันแม่แห่งชาติ' },
+    { m:10, d:13, name:'วันนวมินทรมหาราช' },
+    { m:10, d:23, name:'วันปิยมหาราช' },
+    { m:12, d:5,  name:'วันพ่อแห่งชาติ' },
+    { m:12, d:10, name:'วันรัฐธรรมนูญ' },
+    { m:12, d:31, name:'วันสิ้นปี' },
+  ];
+  const map = {};
+  fixed.forEach(h => {
+    const key = `${year}-${String(h.m).padStart(2,'0')}-${String(h.d).padStart(2,'0')}`;
+    map[key] = h.name;
+  });
+  return map;
+}
+
+function findHolidayOpOverride(dateStr) {
+  return (state.holidays || []).find(h => h.date === dateStr && h.name === HOLIDAY_OP_OVERRIDE);
+}
+
+function getThaiHolidays(year) {
+  const map = {};
+  const builtins = getBuiltinHolidayMap(year);
+  for (const [key, nm] of Object.entries(builtins)) {
+    map[key] = { name: nm, source: 'builtin' };
+  }
+  (state.holidays || []).forEach(h => {
+    if (h.name === HOLIDAY_OP_OVERRIDE) {
+      delete map[h.date];
+      return;
+    }
+    map[h.date] = { name: h.name, source: 'custom', id: h.id };
+  });
+  return map;
+}
+
+async function reloadHolidaysForMonth() {
+  const holRes = await apiGet(`action=holidays&month=${state.month}`);
+  state.holidays = holRes.data || [];
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const [y, m] = state.month.split('-').map(Number);
+  const firstDay = new Date(y, m-1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' });
+  const holidays = getThaiHolidays(y);
+
+  // index OPD by date
+  const opdByDate = {};
+  state.calendar.forEach(e => {
+    if (!opdByDate[e.date]) opdByDate[e.date] = [];
+    opdByDate[e.date].push(e);
+  });
+
+  const body = document.getElementById('cal-body');
+  body.innerHTML = '';
+
+  // Monday-based: Monday=1 → offset (7 columns now)
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+  let cells = [];
+  // fill empty cells before first day
+  for (let i = 0; i < startOffset; i++) {
+    cells.push(`<div class="cal-cell empty"></div>`);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(y, m-1, d).getDay(); // 0=Sun,6=Sat
+    const dateStr = `${state.month}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === today;
+    const isWeekend = dow === 0 || dow === 6;
+    const holidayName = holidays[dateStr];
+    const holidayObj = holidayName; // now an object { name, source, id }
+    const isHoliday = !!holidayObj;
+    const hName = holidayObj?.name || '';
+    const isCustomHoliday = holidayObj?.source === 'custom';
+    const canEdit = state.user?.role !== 'viewer';
+
+    if (isWeekend) {
+      cells.push(`<div class="cal-cell weekend">
+        <div class="cal-date weekend-date">${d}</div>
+        ${isHoliday ? `<div class="holiday-label">🎌 ${hName}</div>` : ''}
+      </div>`);
+      continue;
+    }
+
+    const entries = opdByDate[dateStr] || [];
+    const totalPeople = (() => {
+      const set = new Set();
+      for (const e of entries) {
+        try {
+          const ids = JSON.parse(e.elective_ids || '[]');
+          (ids || []).forEach(id => set.add(id));
+        } catch (e) { /* ignore */ }
+      }
+      return set.size;
+    })();
+    const entriesHtml = entries.length
+      ? `<div class="opd-entry" style="cursor:pointer" onclick="event.stopPropagation();openOPDDay('${dateStr}')">
+          <div class="opd-name">🏥 OPD ${entries.length} รายการ</div>
+          <div class="opd-sub">${totalPeople ? `👥 ${totalPeople} คน` : ''}</div>
+        </div>`
+      : '';
+
+    let cellClass = 'cal-cell';
+    let dateClass = 'cal-date';
+    // วันหยุดให้สีเหมือนเสาร์-อาทิตย์
+    if (isHoliday) { cellClass += ' holiday weekend'; dateClass += ' holiday-date weekend-date'; }
+    if (isToday) dateClass += ' today';
+
+    const deleteBtn = !canEdit || !isHoliday ? '' :
+      isCustomHoliday ? `<span style="cursor:pointer;font-size:10px;color:var(--red);float:right" title="ยกเลิกวันหยุด" onclick="event.stopPropagation();removeHoliday('${holidayObj.id}')">✕</span>` :
+        `<span style="cursor:pointer;font-size:10px;color:var(--red);float:right" title="ไม่นับวันหยุดราชการ (ให้มี OPD ได้)" onclick="event.stopPropagation();suppressBuiltinHolidayQuick('${dateStr}')">✕</span>`;
+
+    cells.push(`<div class="${cellClass}" onclick="openOPDDay('${dateStr}')">
+      <div class="${dateClass}">${d}${isToday?' ●':''}${deleteBtn}</div>
+      ${isHoliday ? `<div class="holiday-label">🎌 ${hName}</div>` : ''}
+      ${entriesHtml}
+      ${canEdit && !isHoliday ? `<div class="add-opd-hint"><button type="button" class="cal-add-btn" title="เพิ่มหรือแก้ไขข้อมูล OPD วันนี้" aria-label="เพิ่มหรือแก้ไขข้อมูล OPD" onclick="event.stopPropagation();openOPDDay('${dateStr}')">+</button></div>` : ''}
+    </div>`);
+  }
+
+  body.innerHTML = cells.join('');
+}
+
+function getOPDElectiveNames(rawIds) {
+  let ids = [];
+  try { ids = JSON.parse(rawIds || '[]'); } catch (e) { ids = []; }
+  return ids
+    .map(id => state.electives.find(e => e.id === id)?.name)
+    .filter(Boolean)
+    .join(', ');
+}
+
+let _showCompletedElectives = false;
+
+function toggleCompletedElectives() {
+  _showCompletedElectives = !_showCompletedElectives;
+  const btn = document.getElementById('btn-toggle-completed');
+  btn.textContent = _showCompletedElectives ? '🙈 ซ่อนที่จบแล้ว' : '👁️ แสดงที่จบแล้ว';
+  renderElectiveTable();
+}
+
+function renderElectiveTable() {
+  const tbody = document.getElementById('elective-tbody');
+  const [y,m] = state.month.split('-').map(Number);
+  const mStart = new Date(y, m-1, 1);
+  const mEnd   = new Date(y, m, 0);
+  const today  = new Date(new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }));
+
+  // กรองเฉพาะ elective ที่เกี่ยวข้องกับเดือนนี้
+  const allInMonth = state.electives.filter(e => {
+    const r1 = parseRange(e.date_range || '');
+    const r2 = parseRange(e.date_range2 || '');
+    const inR1 = r1 && r1.start <= mEnd && r1.end >= mStart;
+    const inR2 = r2 && r2.start <= mEnd && r2.end >= mStart;
+    return inR1 || inR2;
+  });
+
+  // Auto-hide: ซ่อน elective ที่จบมาแล้ว 3+ วัน (ยกเว้นกด toggle)
+  const GRACE_DAYS = 3;
+  const inMonth = allInMonth.filter(e => {
+    if (_showCompletedElectives) return true;
+    const r1 = parseRange(e.date_range || '');
+    const r2 = parseRange(e.date_range2 || '');
+    const ends = [r1?.end, r2?.end].filter(Boolean);
+    if (!ends.length) return true;
+    const lastEnd = new Date(Math.max(...ends));
+    const grace = new Date(lastEnd); grace.setDate(grace.getDate() + GRACE_DAYS);
+    return today <= grace;
+  });
+  const hiddenCount = allInMonth.length - inMonth.length;
+
+  // อัปเดต counter
+  const countEl = document.getElementById('completed-count');
+  if (countEl) countEl.textContent = hiddenCount > 0 ? `(ซ่อน ${hiddenCount} คนที่จบแล้ว)` : '';
+
+  if (!allInMonth.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">ไม่มีแพทย์ Elective เดือนนี้</td></tr>`;
+    return;
+  }
+  if (!inMonth.length && hiddenCount > 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+      Elective ${hiddenCount} คนจบดูงานแล้ว (ซ่อนอัตโนมัติหลัง 3 วัน)
+    </td></tr>`;
+    return;
+  }
+
+  // index OPD by elective id
+  const opdByElective = {};
+  state.calendar.forEach(opd => {
+    try {
+      const ids = JSON.parse(opd.elective_ids || '[]');
+      ids.forEach(eid => {
+        if (!opdByElective[eid]) opdByElective[eid] = [];
+        opdByElective[eid].push(opd);
+      });
+    } catch (e) {}
+  });
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+  function fmtShort(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`;
+  }
+
+  function fmtRange(rangeStr) {
+    const r = parseRange(rangeStr);
+    if (!r) return '';
+    return `${fmtShort(r.start.toISOString())} - ${fmtShort(r.end.toISOString())}`;
+  }
+
+  tbody.innerHTML = inMonth.map(e => {
+    const r1 = parseRange(e.date_range || '');
+    const r2 = parseRange(e.date_range2 || '');
+
+    // ── Round Ward column ──
+    let wardHtml = '';
+    if (r1) {
+      wardHtml += `<div style="margin-bottom:4px">
+        <span style="font-size:10px;color:var(--gray4)">ช่วง 1</span><br>
+        <strong style="font-size:12px">${e.ward || '—'}</strong><br>
+        <span style="font-size:11px;color:var(--gray4)">${fmtRange(e.date_range)}</span>
+      </div>`;
+    }
+    if (r2) {
+      wardHtml += `<div>
+        <span style="font-size:10px;color:var(--gray4)">ช่วง 2</span><br>
+        <strong style="font-size:12px">${e.ward2 || '—'}</strong><br>
+        <span style="font-size:11px;color:var(--gray4)">${fmtRange(e.date_range2)}</span>
+      </div>`;
+    }
+    if (!wardHtml) wardHtml = '<span style="color:var(--gray3)">—</span>';
+
+    // ── OPD column ──
+    const opds = opdByElective[e.id] || [];
+    let opdHtml = '';
+    if (opds.length > 0) {
+      opdHtml = opds.slice(0, 5).map(o => {
+        const d = new Date(o.date);
+        const dayName = daysTH[d.getDay()];
+        const passed = d < today;
+        return `<div style="font-size:11px;line-height:1.6;${passed ? 'text-decoration:line-through;color:var(--gray3)' : ''}">
+          ${passed ? '✅' : '📋'} ${dayName} ${fmtShort(o.date)} — ${o.supervisor_name || ''} (${o.opd_mode === 'solo' ? 'ตรวจเอง' : 'นั่งกับ อ.'})
+        </div>`;
+      }).join('');
+      if (opds.length > 5) opdHtml += `<div style="font-size:10px;color:var(--gray4)">...อีก ${opds.length - 5} รายการ</div>`;
+    } else {
+      opdHtml = '<span style="font-size:11px;color:var(--gray3)">ยังไม่มีตาราง OPD</span>';
+    }
+
+    // ── Status column ──
+    const allEnd = [r1?.end, r2?.end].filter(Boolean);
+    const allStart = [r1?.start, r2?.start].filter(Boolean);
+    const lastEnd = allEnd.length ? new Date(Math.max(...allEnd)) : null;
+    const firstStart = allStart.length ? new Date(Math.min(...allStart)) : null;
+
+    let statusBadge = '';
+    if (lastEnd && today > lastEnd) {
+      statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46">✅ ผ่านครบแล้ว</span>';
+    } else if (firstStart && today >= firstStart) {
+      // คำนวณวันที่เหลือ
+      const daysLeft = lastEnd ? Math.ceil((lastEnd - today) / 86400000) : '?';
+      statusBadge = `<span class="badge" style="background:#dbeafe;color:#1e40af">🔄 กำลังดูงาน</span>
+        <div style="font-size:10px;color:var(--gray4);margin-top:3px">เหลือ ${daysLeft} วัน</div>`;
+    } else if (firstStart) {
+      const daysUntil = Math.ceil((firstStart - today) / 86400000);
+      statusBadge = `<span class="badge" style="background:var(--gold2);color:var(--gold)">⏳ รอเริ่ม</span>
+        <div style="font-size:10px;color:var(--gray4);margin-top:3px">อีก ${daysUntil} วัน</div>`;
+    } else {
+      statusBadge = '<span class="badge" style="background:var(--gray1);color:var(--gray4)">—</span>';
+    }
+
+    const canEdit = state.user?.role !== 'viewer';
+    return `<tr>
+      <td>
+        <button type="button" class="link-btn" onclick="openElectiveDetail('${e.id}')">${e.name}</button>
+        <br><span style="font-size:11px;color:var(--gray4)">${e.from_hospital||''}</span>
+      </td>
+      <td><span class="badge badge-blue">${e.level||'—'}</span></td>
+      <td style="font-size:12px">${wardHtml}</td>
+      <td>${opdHtml}</td>
+      <td style="text-align:center">${statusBadge}</td>
+      <td>${canEdit?`<button class="btn-icon btn-sm" onclick="openEditElective('${e.id}')">✏️</button>`:''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Month navigation ─────────────────────────────────────────
+function prevMonth() {
+  const [y,m] = state.month.split('-').map(Number);
+  const nm = m - 1;
+  const ny = nm < 1 ? y - 1 : y;
+  const mm = nm < 1 ? 12 : nm;
+  state.month = `${ny}-${String(mm).padStart(2,'0')}`;
+  loadPage();
+}
+function nextMonth() {
+  const [y,m] = state.month.split('-').map(Number);
+  const nm = m + 1;
+  const ny = nm > 12 ? y + 1 : y;
+  const mm = nm > 12 ? 1 : nm;
+  state.month = `${ny}-${String(mm).padStart(2,'0')}`;
+  loadPage();
+}
+
+// ── OPD Modal ────────────────────────────────────────────────
+function openOPDNew(dateStr) {
+  if (state.user?.role === 'viewer') return;
+  document.getElementById('opd-id').value = '';
+  document.getElementById('opd-date').value = dateStr;
+  const [y,m,d] = dateStr.split('-');
+  const buddistYear = parseInt(y)+543;
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  document.getElementById('opd-date-display').value = `${parseInt(d)} ${monthsTH[parseInt(m)]} ${buddistYear}`;
+  document.getElementById('opd-supervisor').value = '';
+  document.getElementById('opd-mode').value = 'sit';
+  document.getElementById('opd-notes').value = '';
+  hide('btn-delete-opd');
+  setText('modal-opd-title','📝 บันทึก OPD — ' + `${parseInt(d)} ${monthsTH[parseInt(m)]} ${buddistYear}`);
+  populateOPDDropdowns();
+  updateOPDModeUI();
+  updateHolidaySectionInOPD(dateStr);
+  openModal('modal-opd');
+}
+
+function openOPDEdit(evt, id) {
+  evt.stopPropagation();
+  if (state.user?.role === 'viewer') return;
+  const entry = state.calendar.find(e => e.id === id);
+  if (!entry) return;
+  document.getElementById('opd-id').value = id;
+  document.getElementById('opd-date').value = entry.date;
+  document.getElementById('opd-date-display').value = entry.date;
+  document.getElementById('opd-supervisor').value = entry.supervisor_id || '';
+  document.getElementById('opd-mode').value = entry.opd_mode || 'sit';
+  document.getElementById('opd-notes').value = entry.notes || '';
+  show('btn-delete-opd');
+  setText('modal-opd-title','✏️ แก้ไข OPD');
+  populateOPDDropdowns(entry);
+  updateOPDModeUI();
+  updateHolidaySectionInOPD(entry.date);
+  openModal('modal-opd');
+}
+
+function populateOPDDropdowns(entry) {
+  const supSel = document.getElementById('opd-supervisor');
+  supSel.innerHTML = '<option value="">— เลือกอาจารย์ —</option>' +
+    state.supervisors.map(s => `<option value="${s.id}" ${entry?.supervisor_id===s.id?'selected':''}>${s.name}</option>`).join('');
+
+  const selectedIds = entry ? (JSON.parse(entry.elective_ids||'[]')) : [];
+  const box = document.getElementById('opd-elective-checklist');
+  const opts = getOPDElectiveOptions();
+  box.innerHTML = opts.map(e => {
+    const checked = selectedIds.includes(e.id) ? 'checked' : '';
+    return `<label style="display:flex;gap:8px;align-items:center;padding:4px 2px;border-bottom:1px dashed var(--gray2)">
+      <input type="checkbox" class="opd-elc-cb" value="${e.id}" ${checked}>
+      <span style="font-size:13px">${e.name} <span style="color:var(--gray4);font-size:11px">${e.level||''}</span></span>
+    </label>`;
+  }).join('') || `<div class="empty-state">ไม่มีรายชื่อ Elective</div>`;
+}
+
+function isChiefLevel(level) {
+  const s = String(level || '').trim();
+  // กันเฉพาะ “Chief Resident3 / Fellow” ที่แยกไปอยู่ตาราง chief_residents แล้ว
+  // ระดับอื่น ๆ (เช่น Resident-Med / Resident-Hemato / Fellow-Hemato) ถือเป็น elective และเลือกออก OPD ได้
+  return ['Resident 3', 'Fellow'].includes(s);
+}
+
+function getOPDElectiveOptions() {
+  return state.electives.filter(e => !isChiefLevel(e.level) && e.status !== 'deleted');
+}
+
+function updateOPDModeUI() {
+  const mode = document.getElementById('opd-mode').value;
+  const sup = document.getElementById('opd-supervisor');
+  const label = sup?.closest('.field')?.querySelector('label');
+  if (!sup) return;
+  if (mode === 'solo') {
+    sup.value = '';
+    sup.disabled = true;
+    if (label) label.innerHTML = '👨‍⚕️ อาจารย์ที่ออก OPD';
+  } else {
+    sup.disabled = false;
+    if (label) label.innerHTML = '👨‍⚕️ อาจารย์ที่ออก OPD <span class="req">*</span>';
+  }
+}
+
+async function saveOPD() {
+  const supId = document.getElementById('opd-supervisor').value;
+  const mode = document.getElementById('opd-mode').value;
+  if (mode !== 'solo' && !supId) { toast('กรุณาเลือกอาจารย์ หรือเปลี่ยนเป็นตรวจเอง','error'); return; }
+  const elcIds = Array.from(document.querySelectorAll('#opd-elective-checklist .opd-elc-cb:checked')).map(cb => cb.value);
+  if (!elcIds.length) { toast('กรุณาเลือกแพทย์ Elective อย่างน้อย 1 คน','error'); return; }
+  const data = {
+    id:                document.getElementById('opd-id').value || undefined,
+    date:              document.getElementById('opd-date').value,
+    supervisor_id:     mode === 'solo' ? null : supId,
+    opd_mode:          mode,
+    opd_type:          'Elective',
+    participant_label: '',
+    elective_ids:      elcIds,
+    notes:             document.getElementById('opd-notes').value,
+  };
+  try {
+    const res = await api({ action:'save_opd', data }, true);
+    if (!res.success) throw new Error(res.error);
+    closeModal('modal-opd');
+    toast('บันทึกแล้ว ✓','success');
+    await loadPage();
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+}
+
+function renderOPDDayList(dateStr) {
+  const entries = (state.calendar || []).filter(e => e.date === dateStr);
+  const el = document.getElementById('opd-day-list');
+  const canEdit = state.user?.role !== 'viewer';
+  if (!entries.length) {
+    el.innerHTML = `<p class="empty-state">ยังไม่มีรายการ OPD วันนี้</p>`;
+  } else {
+    el.innerHTML = entries.map(e => {
+      const isSolo = e.opd_mode === 'solo';
+      const title = isSolo ? 'ตรวจเอง' : (e.supervisor_name || '—');
+      const names = getOPDElectiveNames(e.elective_ids) || 'ยังไม่ได้เลือก Elective';
+      return `<div style="border:1px solid var(--gray2);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div style="font-weight:700;color:var(--navy)">${isSolo?'🩺':'👨‍⚕️'} ${title}</div>
+            <div style="font-size:12px;color:var(--gray4);margin-top:4px">👥 ${names}</div>
+          </div>
+          ${canEdit ? `<button type="button" class="btn btn-outline btn-sm" onclick="openOPDEditById('${e.id}')">แก้ไข</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function openOPDDay(dateStr) {
+  document.getElementById('opd-day-date').value = dateStr;
+  const [y,m,d] = dateStr.split('-');
+  const buddistYear = parseInt(y)+543;
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  setText('modal-opd-day-title', `🏥 รายการ OPD — ${parseInt(d)} ${monthsTH[parseInt(m)]} ${buddistYear}`);
+
+  updateHolidaySectionInOPDDay(dateStr);
+  applyOPDDayViewerMode(dateStr);
+  const hd = getThaiHolidays(parseInt(y, 10))[dateStr];
+  if (!hd) renderOPDDayList(dateStr);
+  else document.getElementById('opd-day-list').innerHTML = '';
+  openModal('modal-opd-day');
+}
+
+function applyOPDDayViewerMode(dateStr) {
+  if (state.user?.role !== 'viewer') return;
+  const [y] = dateStr.split('-').map(Number);
+  const hasHolidayInfo = Boolean(getThaiHolidays(y)[dateStr] || findHolidayOpOverride(dateStr));
+  const holidaySection = document.getElementById('opd-day-holiday-section');
+  const holidayAdd = document.getElementById('opd-day-holiday-add');
+  const holidayRemove = document.getElementById('btn-remove-holiday-opd-day');
+  const addBtn = document.getElementById('btn-opd-day-add');
+
+  if (holidaySection) holidaySection.style.display = hasHolidayInfo ? '' : 'none';
+  if (holidayAdd) holidayAdd.style.display = 'none';
+  if (holidayRemove) holidayRemove.style.display = 'none';
+  if (addBtn) addBtn.style.display = 'none';
+}
+
+function openOPDNewFromDay() {
+  if (state.user?.role === 'viewer') return;
+  const dateStr = document.getElementById('opd-day-date').value;
+  const [y] = dateStr.split('-').map(Number);
+  const holidays = getThaiHolidays(y);
+  if (holidays[dateStr]) {
+    toast('วันนี้เป็นวันหยุด ไม่สามารถเพิ่มรายการ OPD ได้','error');
+    return;
+  }
+  closeModal('modal-opd-day');
+  openOPDNew(dateStr);
+}
+
+function openOPDEditById(id) {
+  closeModal('modal-opd-day');
+  const entry = state.calendar.find(e => e.id === id);
+  if (!entry) return;
+  // สร้าง event ปลอมสำหรับ openOPDEdit
+  openOPDEdit({ stopPropagation(){} }, id);
+}
+
+async function deleteOPD() {
+  const id = document.getElementById('opd-id').value;
+  if (!id || !confirm('ลบรายการนี้?')) return;
+  try {
+    const res = await api({ action:'delete_opd', id }, true);
+    if (!res.success) throw new Error(res.error);
+    closeModal('modal-opd');
+    toast('ลบแล้ว','success');
+    await loadPage();
+  } catch(e) { toast('ลบไม่ได้: '+e.message,'error'); }
+}
+
+// ── Elective Modal ───────────────────────────────────────────
+function openAddElective() {
+  document.getElementById('el-id').value = '';
+  ['el-first','el-last','el-name','el-from','el-ward1','el-ward2'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('el-level').value = '';
+  ['el-start1','el-end1','el-start2','el-end2'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('el-ward1').value = 'วอร์ดชาย';
+  document.getElementById('el-ward2').value = 'วอร์ดหญิง';
+  setWard(1,'วอร์ดชาย'); setWard(2,'วอร์ดหญิง');
+  hide('btn-soft-delete-elective');
+  hide('btn-hard-delete-elective');
+  setText('modal-elective-title','➕ เพิ่มแพทย์ Elective');
+  closeModal('modal-manage');
+  openModal('modal-elective');
+}
+
+function openEditElective(id) {
+  const e = state.electives.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('el-id').value = e.id;
+  const parsed = splitFullName(e.name || '');
+  document.getElementById('el-first').value = parsed.first;
+  document.getElementById('el-last').value  = parsed.last;
+  document.getElementById('el-name').value  = e.name || '';
+  document.getElementById('el-from').value = e.from_hospital || '';
+  document.getElementById('el-level').value = e.level || '';
+  const r1 = parseRangeToInputs(e.date_range);
+  document.getElementById('el-start1').value = r1.start;
+  document.getElementById('el-end1').value   = r1.end;
+  const r2 = parseRangeToInputs(e.date_range2);
+  document.getElementById('el-start2').value = r2.start;
+  document.getElementById('el-end2').value   = r2.end;
+  setWard(1, e.ward || 'วอร์ดชาย');
+  setWard(2, e.ward2 || 'วอร์ดหญิง');
+  show('btn-soft-delete-elective');
+  show('btn-hard-delete-elective');
+  setText('modal-elective-title','✏️ แก้ไขแพทย์ Elective');
+  openModal('modal-elective');
+}
+
+async function saveElective() {
+  // กันกดซ้ำตอนเน็ตช้า (ทำให้สร้าง record ซ้ำ)
+  const btn = document.getElementById('btn-save-elective');
+  if (btn?.dataset?.busy === '1') return;
+  if (btn) { btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+
+  const first = val('el-first');
+  const last  = val('el-last');
+  if (!first || !last) {
+    toast('กรุณากรอกชื่อและนามสกุลให้ครบ','error');
+    if (btn) { btn.dataset.busy='0'; btn.disabled=false; btn.textContent='💾 บันทึก'; }
+    return;
+  }
+  const name = `${first} ${last}`.replace(/\s+/g,' ').trim();
+  document.getElementById('el-name').value = name;
+  const s1 = val('el-start1'), e1 = val('el-end1');
+  if (!s1 || !e1) { toast('กรุณาเลือกช่วงที่ 1','error'); if (btn) { btn.dataset.busy='0'; btn.disabled=false; btn.textContent='💾 บันทึก'; } return; }
+  const data = {
+    id:           val('el-id') || undefined,
+    name,
+    from_hospital: val('el-from'),
+    level:        val('el-level'),
+    date_range:   s1 && e1 ? `${s1} ถึง ${e1}` : '',
+    ward:         document.getElementById('el-ward1').value,
+    date_range2:  (val('el-start2') && val('el-end2')) ? `${val('el-start2')} ถึง ${val('el-end2')}` : '',
+    ward2:        document.getElementById('el-ward2').value,
+    status:       'upcoming',
+  };
+  try {
+    const res = await api({ action:'save_elective', data }, true);
+    if (!res.success) throw new Error(res.error);
+    closeModal('modal-elective');
+    toast('บันทึกแล้ว ✓','success');
+    await loadPage();
+
+    // กันเคส "บันทึกไปอีก backend" หรือ token หมดอายุแล้วหน้าไม่อัปเดต
+    try {
+      const chk = await apiGet('action=electives');
+      const found = (chk.data || []).some(e => String(e.name || '').trim() === name);
+      if (!found) {
+        toast(`บันทึกแล้วแต่ยังไม่พบในรายการ Elective (ตรวจสอบ Backend URL: ${getWorkerUrl()})`, 'error');
+      }
+    } catch (e) { /* ignore */ }
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+  finally {
+    if (btn) { btn.dataset.busy='0'; btn.disabled=false; btn.textContent='💾 บันทึก'; }
+  }
+}
+
+function splitFullName(full) {
+  const s = String(full || '').trim().replace(/\s+/g,' ');
+  if (!s) return { first:'', last:'' };
+  const parts = s.split(' ');
+  if (parts.length === 1) return { first: parts[0], last: '' };
+  return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
+async function softDeleteElective() {
+  const id = val('el-id');
+  if (!id) return;
+  if (!confirm('ซ่อนแพทย์ Elective รายการนี้? (Soft delete: ข้อมูลยังอยู่ในฐานข้อมูล แต่จะไม่แสดงในหน้าเว็บ)')) return;
+  try {
+    const res = await api({ action:'soft_delete_elective', id }, true);
+    if (!res.success) throw new Error(res.error || 'ลบไม่ได้');
+    closeModal('modal-elective');
+    toast('ซ่อนรายการแล้ว ✓','success');
+    await loadPage();
+  } catch(e) { toast('ซ่อนไม่ได้: '+e.message,'error'); }
+}
+
+async function hardDeleteElective() {
+  const id = val('el-id');
+  if (!id) return;
+  if (!confirm('ลบถาวรแพทย์ Elective รายการนี้? ข้อมูลจะหายจากฐานข้อมูลและกู้คืนไม่ได้')) return;
+  try {
+    const res = await api({ action:'hard_delete_elective', id }, true);
+    if (!res.success) throw new Error(res.error || 'ลบไม่ได้');
+    closeModal('modal-elective');
+    toast('ลบถาวรแล้ว','success');
+    await loadPage();
+  } catch(e) { toast('ลบถาวรไม่ได้: '+e.message,'error'); }
+}
+
+function setWard(period, value) {
+  const map = {
+    'วอร์ดชาย': 'male', 'วอร์ดหญิง': 'female'
+  };
+  const suffix = map[value] || 'male';
+  document.querySelectorAll(`[id^="ward${period}-"]`).forEach(b => b.classList.remove('active'));
+  const target = document.getElementById(`ward${period}-${suffix}`);
+  if (target) target.classList.add('active');
+  document.getElementById(`el-ward${period}`).value = value;
+}
+
+function fillRange(period) {
+  const s = document.getElementById(`el-start${period}`).value;
+  const e = document.getElementById(`el-end${period}`).value;
+  if (s && e) toast(`ช่วงที่ ${period}: ${s} ถึง ${e}`);
+}
+
+// ── Chief Modal ──────────────────────────────────────────────
+function openChiefModal(wardCode) {
+  document.getElementById('chief-ward-code').value = wardCode;
+  setText('chief-modal-title', `✏️ แก้ไข Chief / Supervise — วอร์ด${wardCode==='male'?'ชาย':'หญิง'}`);
+
+  // Populate chief dropdown (residents)
+  const chiefSel = document.getElementById('chief-name-sel');
+  chiefSel.innerHTML = '<option value="">— เลือก —</option>' +
+    state.residents.map(r => `<option value="${r.name}">${r.name} (${r.role||''})</option>`).join('');
+  chiefSel.onchange = () => {
+    const r = state.residents.find(x => x.name === chiefSel.value);
+    setText('chief-line-display', r?.line_id || '—');
+  };
+
+  // Populate supervisor multi-select
+  const supSel = document.getElementById('chief-sup-sel');
+  const existing = state.chiefs[wardCode] || {};
+  const existingSup = (existing.supervise_list || '').split(',').map(s => s.trim()).filter(Boolean);
+  supSel.innerHTML = state.supervisors.map(s =>
+    `<option value="${s.name}" ${existingSup.includes(s.name)?'selected':''}>${s.name}</option>`
+  ).join('');
+
+  if (existing.chief_name) chiefSel.value = existing.chief_name;
+  const selectedResident = state.residents.find(r => r.name === chiefSel.value);
+  setText('chief-line-display', existing.chief_line_id || selectedResident?.line_id || '—');
+  openModal('modal-chief');
+}
+
+async function saveChief() {
+  const wardCode = document.getElementById('chief-ward-code').value;
+  const chiefName = document.getElementById('chief-name-sel').value;
+  const supSel = document.getElementById('chief-sup-sel');
+  const supList = Array.from(supSel.selectedOptions).map(o => o.value).join(', ');
+  const existing = state.chiefs[wardCode] || {};
+
+  const chiefResident = state.residents.find(r => r.name === chiefName);
+
+  const data = {
+    id:            existing.id || `C${Date.now()}`,
+    month:         state.month,
+    ward_code:     wardCode,
+    chief_name:    chiefName,
+    supervise_list: supList,
+    chief_line_id: chiefResident?.line_id || existing.chief_line_id || '',
+  };
+  try {
+    const res = await api({ action:'save_chief', data }, true);
+    if (!res.success) throw new Error(res.error);
+    closeModal('modal-chief');
+    toast('บันทึกแล้ว ✓','success');
+    await loadPage();
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+}
+
+// ── Manage data ──────────────────────────────────────────────
+function loadManageData() {
+  // Supervisors
+  const supList = document.getElementById('sup-list');
+  supList.innerHTML = state.supervisors.map(s =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
+      <span style="flex:1;font-size:13px">${s.name}</span>
+      <button class="btn-icon btn-sm" onclick="deleteSupervisor('${s.id}')">🗑️</button>
+    </div>`
+  ).join('') || '<p class="empty-state">ไม่มีข้อมูล</p>';
+
+  // Elective list
+  const elcList = document.getElementById('elc-list');
+  elcList.innerHTML = state.electives.map(e =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
+      <span style="flex:1;font-size:13px">${e.name} <span style="color:var(--gray4);font-size:11px">${e.level||''}</span></span>
+      <button class="btn-icon btn-sm" onclick="openEditElective('${e.id}')">✏️</button>
+    </div>`
+  ).join('') || '<p class="empty-state">ไม่มีข้อมูล</p>';
+
+  // Residents
+  renderResidentList();
+}
+
+function renderResidentList() {
+  const list = document.getElementById('res-list');
+  list.innerHTML = state.residents.map(r =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
+      <span style="flex:1;font-size:13px">${r.name} <span class="badge badge-teal">${r.role||''}</span><br>
+        <span style="font-size:11px;color:var(--gray4)">LINE ID: ${r.line_id || '—'}</span>
+      </span>
+      <button class="btn-icon btn-sm" onclick="deleteResident('${r.id}')">🗑️</button>
+    </div>`
+  ).join('') || '<p class="empty-state">ไม่มีข้อมูล</p>';
+}
+
+async function addSupervisor() {
+  const name = val('new-sup-name');
+  if (!name) return;
+  try {
+    const res = await api({ action:'save_supervisor', data:{ name, active:true }}, true);
+    if (!res.success) throw new Error(res.error);
+    document.getElementById('new-sup-name').value = '';
+    await reloadSupervisors();
+    loadManageData();
+    toast('เพิ่มอาจารย์แล้ว ✓','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteSupervisor(id) {
+  if (!confirm('ลบอาจารย์นี้?')) return;
+  try {
+    await api({ action:'delete_supervisor', id }, true);
+    await reloadSupervisors();
+    loadManageData();
+    toast('ลบแล้ว');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function addResident() {
+  const name = val('new-res-name');
+  const lineId = val('new-res-line');
+  const role = document.getElementById('new-res-type').value;
+  if (!name) { toast('กรุณากรอกชื่อ','error'); return; }
+  try {
+    const res = await api({
+      action: 'save_chief_resident',
+      data: { name, role, line_id: lineId }
+    }, true);
+    if (!res.success) throw new Error(res.error);
+    document.getElementById('new-res-name').value = '';
+    document.getElementById('new-res-line').value = '';
+    const crRes = await apiGet('action=chief_residents');
+    state.residents = crRes.data || [];
+    renderResidentList();
+    toast('เพิ่มแล้ว ✓','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteResident(id) {
+  if (!confirm('ลบรายการนี้?')) return;
+  try {
+    await api({ action:'delete_chief_resident', id }, true);
+    state.residents = state.residents.filter(r => r.id !== id);
+    renderResidentList();
+    toast('ลบแล้ว');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function reloadSupervisors() {
+  const res = await apiGet('action=supervisors');
+  state.supervisors = res.data || [];
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Users ─────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const res = await apiGet('action=users');
+    if (!res.success) throw new Error(res.error || 'โหลดผู้ใช้ไม่ได้');
+    const list = document.getElementById('user-list');
+    list.innerHTML = (res.data||[]).map(u =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--gray2)">
+        <span style="flex:1;font-size:13px">${u.name} <span class="badge ${u.role==='admin'?'badge-gold':'badge-teal'}">${u.role}</span></span>
+        <button class="btn-icon btn-sm" onclick="deleteUser('${u.id}')">🗑️</button>
+      </div>`
+    ).join('');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function addUser() {
+  const name = val('new-user-name'), pin = val('new-user-pin');
+  const role = document.getElementById('new-user-role').value;
+  if (!name || !pin) { toast('กรุณากรอกชื่อและ PIN','error'); return; }
+  try {
+    const res = await api({ action:'save_user', data:{ name, pin, role, active:true }}, true);
+    if (!res.success) throw new Error(res.error);
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-pin').value = '';
+    await loadUsers();
+    toast('เพิ่มผู้ใช้แล้ว ✓','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteUser(id) {
+  if (!confirm('ปิดใช้งานผู้ใช้นี้?')) return;
+  try {
+    await api({ action:'delete_user', id }, true);
+    await loadUsers();
+    toast('ปิดใช้งานแล้ว');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function changePin() {
+  const oldPin = val('pin-old'), newPin = val('pin-new');
+  if (!oldPin || !newPin) { toast('กรุณากรอก PIN เดิมและใหม่','error'); return; }
+  try {
+    const res = await api({ action:'change_pin', old_pin:oldPin, new_pin:newPin }, true);
+    if (!res.success) throw new Error(res.error);
+    document.getElementById('pin-old').value = '';
+    document.getElementById('pin-new').value = '';
+    toast('เปลี่ยน PIN แล้ว ✓','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ── Elective search: client fuzzy (เทียบ fuzzyMatch.js) + ข้อความ fallback ──
+const _NAME_PREFIXES = ['นพ.', 'นพ ', 'พญ.', 'พญ ', 'คุณหมอ', 'หมอ', 'Dr.', 'Dr ', 'dr.', 'dr ', 'นายแพทย์', 'แพทย์หญิง'];
+function normalizeNameClient(text) {
+  if (!text) return '';
+  let s = String(text).trim();
+  for (const p of _NAME_PREFIXES) {
+    if (s.toLowerCase().startsWith(p.toLowerCase())) {
+      s = s.slice(p.length).trim();
+      break;
+    }
+  }
+  return s.replace(/\s+/g, ' ').trim();
+}
+function levenshteinClient(a, b) {
+  if (!a) return b?.length ?? 0;
+  if (!b) return a.length;
+  const m = [];
+  for (let i = 0; i <= b.length; i++) m[i] = [i];
+  for (let j = 0; j <= a.length; j++) m[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      m[i][j] = b[i - 1] === a[j - 1]
+        ? m[i - 1][j - 1]
+        : Math.min(m[i - 1][j - 1] + 1, m[i][j - 1] + 1, m[i - 1][j] + 1);
+    }
+  }
+  return m[b.length][a.length];
+}
+function similarityClient(a, b) {
+  if (!a && !b) return 100;
+  if (!a || !b) return 0;
+  const dist = levenshteinClient(a, b);
+  const max = Math.max(a.length, b.length);
+  return max === 0 ? 100 : Math.round(((max - dist) / max) * 10000) / 100;
+}
+function findDoctorByNameClient(input, doctors, threshold) {
+  if (!input?.trim() || input.trim().length < 2) return null;
+  const normInput = normalizeNameClient(input);
+  if (normInput.length < 2) return null;
+  let best = null, bestScore = 0;
+  for (const doc of doctors) {
+    const normName = normalizeNameClient(doc.name);
+    if (!normName) continue;
+    if (normInput === normName) return { doctor: doc, similarity: 100 };
+    if (normInput.replace(/\s/g, '') === normName.replace(/\s/g, '')) return { doctor: doc, similarity: 100 };
+    const inputNoSpace = normInput.replace(/\s/g, '');
+    const nameNoSpace = normName.replace(/\s/g, '');
+    if (
+      inputNoSpace.length >= 2 &&
+      (nameNoSpace.includes(inputNoSpace) || inputNoSpace.includes(nameNoSpace))
+    ) {
+      const score = inputNoSpace === nameNoSpace ? 100 : 95;
+      if (score > bestScore) { bestScore = score; best = doc; }
+      continue;
+    }
+    const score = similarityClient(normInput, normName);
+    if (score > bestScore) { bestScore = score; best = doc; }
+  }
+  return bestScore >= threshold ? { doctor: best, similarity: bestScore } : null;
+}
+function chiefForWardClient(ward) {
+  const w = String(ward || '');
+  const isF = w.includes('หญิง') || w.toLowerCase().includes('female');
+  return isF ? (state.chiefs?.female || {}) : (state.chiefs?.male || {});
+}
+function fmtLineClient(line) {
+  const s = String(line || '').trim();
+  if (!s) return '';
+  return s.startsWith('@') || s.startsWith('http') ? s : `@${s}`;
+}
+function electiveOpdBlockClient(e) {
+  try {
+    const id = String(e?.id || '');
+    if (!id) return '';
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const subs = [];
+    for (const oc of state.calendar || []) {
+      if (!oc.date || oc.date < today) continue;
+      const raw = oc.elective_ids || '';
+      if (!raw.includes(id)) continue;
+      let label = oc.date;
+      const mode = (oc.opd_mode || '').toLowerCase();
+      if (mode === 'solo') subs.push(`• ${label} — ตรวจเอง`);
+      else subs.push(`• ${label} — นั่งกับอ. ${oc.supervisor_name || '(ยังไม่ระบุอาจารย์)'}`);
+      if (subs.length >= 10) break;
+    }
+    return subs.length ? `🏥 ตาราง OPD\n${subs.join('\n')}` : '';
+  } catch (e) { return ''; }
+}
+function buildElectivePreviewClient(e) {
+  const pdf = state.publicSettings?.find(x => x.key === 'pdf_manual_url')?.value || '(ยังไม่ตั้งค่า)';
+  const c1 = chiefForWardClient(e.ward);
+  const c2 = chiefForWardClient(e.ward2);
+  let out = `🧑‍⚕️ ${e.name} (${e.level || '—'})\n\n`;
+  out += `🟦 ช่วงที่ 1 (${e.date_range || '(ยังไม่ระบุ)'})\n`;
+  out += `🏥 วอร์ด: ${e.ward || '(ยังไม่ระบุ)'}\n`;
+  out += `👑 Chief: ${c1.chief_name || '—'} ${fmtLineClient(c1.chief_line_id)}\n`;
+  out += `👨‍⚕️ อาจารย์ที่ต้องราวด์ด้วย: ${c1.supervise_list || '—'}`;
+  if (e.date_range2 && e.ward2) {
+    out += `\n\n🟧 ช่วงที่ 2 (${e.date_range2})\n`;
+    out += `🏥 วอร์ด: ${e.ward2}\n`;
+    out += `👑 Chief: ${c2.chief_name || '—'} ${fmtLineClient(c2.chief_line_id)}\n`;
+    out += `👨‍⚕️ อาจารย์ที่ต้องราวด์ด้วย: ${c2.supervise_list || '—'}`;
+  }
+  const opd = electiveOpdBlockClient(e);
+  if (opd) out += `\n\n${opd}`;
+  out += `\n\n📚 คู่มือ: ${pdf}`;
+  return out;
+}
+function electiveSearchFallback(trimmed) {
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return null;
+  const list = (state.electives || []).filter(x => x.status !== 'deleted');
+  if (!list.length) return null;
+  const m = findDoctorByNameClient(trimmed, list, 90);
+  if (!m?.doctor) return null;
+  return buildElectivePreviewClient(m.doctor);
+}
+function showElectiveSearchResult(text, electiveId) {
+  const box = document.getElementById('search-result');
+  setText('search-preview', text);
+  if (electiveId) box.setAttribute('data-elective-id', electiveId);
+  else box.removeAttribute('data-elective-id');
+  box.removeAttribute('data-doctor-id');
+  show('search-result');
+}
+
+// ── Search ───────────────────────────────────────────────────
+let _searchTimer = null;
+
+/** ขณะพิมพ์: delay แล้วค้นอัตโนมัติ — ผลลัพธ์จะเห็นหลังหยุดพิมพ์ครู่หนึ่ง */
+function doSearchDebounced(q) {
+  clearTimeout(_searchTimer);
+  const t = String(q || '').trim();
+  if (t.length < 2) {
+    hide('search-result');
+    return;
+  }
+  if (!/[ก-๙]/.test(t) && !/[A-Za-z]/.test(t)) {
+    hide('search-result');
+    return;
+  }
+  hide('search-result');
+  _searchTimer = setTimeout(() => _doSearchAsync(t), 450);
+}
+
+let _electiveSearchBusy = false;
+
+/** Enter = submit ฟอร์ม | ปุ่มค้นหา = submit — เหมือนกัน, มี try/catch กัน promise ค้าง */
+async function runElectiveSearchNow() {
+  clearTimeout(_searchTimer);
+  const t = String(document.getElementById('search-input')?.value || '').trim();
+  if (t.length < 2) {
+    toast('พิมพ์ชื่อให้ความยาวอย่างน้อย 2 ตัวอักษร', 'error');
+    return;
+  }
+  if (!/[ก-๙]/.test(t) && !/[A-Za-z]/.test(t)) {
+    toast('พิมพ์ชื่อเป็นภาษาไทยหรืออังกฤษ', 'error');
+    return;
+  }
+  if (_electiveSearchBusy) return;
+  _electiveSearchBusy = true;
+  try {
+    await _doSearchAsync(t);
+  } finally {
+    _electiveSearchBusy = false;
+  }
+}
+
+async function _doSearchAsync(q) {
+  const trimmed = (q || '').trim();
+  if (!trimmed || trimmed.length < 2) {
+    hide('search-result');
+    return;
+  }
+  try {
+    const res = await apiGet(
+      `action=elective_preview&q=${encodeURIComponent(trimmed)}&month=${encodeURIComponent(state.month)}`
+    );
+    const unk = typeof res?.error === 'string' &&
+      (/unknown action/i.test(res.error) || /unauthoriz/i.test(res.error));
+    if (res.success === false && unk) {
+      const fb = electiveSearchFallback(trimmed);
+      if (fb) {
+        showElectiveSearchResult(fb, null);
+        toast('ใช้ข้อความจากหน้านี้ชั่วคราว — เวอร์ชัน Worker ควรได้รับการ deploy เพื่อค้นหาแบบเดียวกับ LINE', 'error');
+        return;
+      }
+    }
+    if (res.success === false) {
+      const fb2 = electiveSearchFallback(trimmed);
+      if (fb2) {
+        showElectiveSearchResult(fb2, null);
+        toast('แสดงข้อมูลจากหน้านี้ (API: ' + (res.error || 'ข้อผิดพลาด') + ')', 'error');
+        return;
+      }
+      hide('search-result');
+      toast(res.error || 'ค้นหาไม่ได้', 'error');
+      return;
+    }
+    const ep = res.elective_preview;
+    const box = document.getElementById('search-result');
+    if (!ep) {
+      const fb3 = electiveSearchFallback(trimmed);
+      if (fb3) {
+        showElectiveSearchResult(fb3, null);
+        return;
+      }
+    }
+
+    if (ep?.hint === 'need_full_name') {
+      setText('search-preview', ep.message || 'พิมพ์ชื่อ นามสกุลให้ครบเหมือนใน LINE');
+      box.removeAttribute('data-elective-id');
+      box.removeAttribute('data-doctor-id');
+      show('search-result');
+      return;
+    }
+
+    if (ep?.hint === 'short') {
+      hide('search-result');
+      return;
+    }
+
+    if (ep?.match === true && ep.text) {
+      setText('search-preview', ep.text);
+      box.setAttribute('data-elective-id', ep.elective?.id || '');
+      box.removeAttribute('data-doctor-id');
+      show('search-result');
+      return;
+    }
+
+    if (ep?.suggestions?.length) {
+      const listText = ep.suggestions
+        .map((e, i) => `${i + 1}. ${e.name} (${e.level || '—'}) — ${e.date_range || '—'}`)
+        .join('\n');
+      setText(
+        'search-preview',
+        `ไม่พบชื่อตรงกับที่พิมพ์ (ตามความเข้ากันของชื่อในระบบ)\nรายชื่อที่อาจใกล้เคียง:\n\n${listText}\n\n💡 พิมพ์ชื่อ นามสกุลให้ตรงกับที่ระบุในระบบ หรือลองจากรายการข้างบน`,
+      );
+      box.removeAttribute('data-elective-id');
+      box.removeAttribute('data-doctor-id');
+      show('search-result');
+      return;
+    }
+
+    setText(
+      'search-preview',
+      'ไม่พบแพทย์ Elective ชื่อนี้ในระบบ ลองพิมพ์ “ชื่อ นามสกุล” ให้ครบ หรือตรวจสะกดอีกครั้ง',
+    );
+    box.removeAttribute('data-elective-id');
+    box.removeAttribute('data-doctor-id');
+    show('search-result');
+  } catch (e) {
+    hide('search-result');
+    toast('ค้นหาไม่ได้: ' + (e.message || e), 'error');
+  }
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  setText('search-preview', '');
+  hide('search-result');
+}
+
+function copyPreview() {
+  const txt = (document.getElementById('search-preview')?.textContent || '').trim();
+  if (!txt) {
+    toast('ยังไม่มีข้อความให้คัดลอก — กดค้นหาก่อนนะคะ', 'error');
+    return;
+  }
+  navigator.clipboard.writeText(txt)
+    .then(() => toast('คัดลอกแล้ว — นำไปวางใน LINE หรือแอปจดบันทึกได้เลย ✓', 'success'))
+    .catch(() => toast('คัดลอกไม่ได้ — เลือกข้อความในช่องแล้วกด Ctrl+C', 'error'));
+}
+
+// ── Print (dialog ของเบราว์เซอร์ — บันทึกเป็น PDF ได้จากตัวเลือกเครื่องพิมพ์) ──
+function downloadPDF() {
+  window.print();
+}
+
+// ── API helpers ───────────────────────────────────────────────
+async function parseJsonSafe(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return { success: false, error: `ตอบกลับไม่ใช่ JSON (HTTP ${res.status}): ${text.slice(0, 120)}` };
+  }
+}
+
+async function api(body, requireAuth = false) {
+  const headers = { 'Content-Type':'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const res = await fetch(getWorkerUrl() + '/api', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const data = await parseJsonSafe(res);
+  if (!res.ok && typeof data.success === 'undefined') {
+    data.success = false;
+    if (!data.error) data.error = `HTTP ${res.status}`;
+  }
+  return data;
+}
+
+async function apiGet(params) {
+  const headers = {};
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const url = `${getWorkerUrl()}/api?${params}` + (state.token ? '' : '&public_view=1');
+  const res = await fetch(url, { headers });
+  const data = await parseJsonSafe(res);
+  if (!res.ok && typeof data.success === 'undefined') {
+    data.success = false;
+    if (!data.error) data.error = `HTTP ${res.status}`;
+  }
+  return data;
+}
+
+// ── Modal helpers ─────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function openLogoModal() { openModal('modal-logo'); }
+function closeLogoModal() { closeModal('modal-logo'); }
+
+function openElectiveDetail(id) {
+  const e = state.electives.find(x => x.id === id);
+  if (!e) { toast('ไม่พบข้อมูลแพทย์ Elective', 'error'); return; }
+  const text = buildElectivePreviewClient(e);
+  setText('modal-elective-detail-title', `🧑‍⚕️ ${e.name}`);
+  setText('elective-detail-text', text || '');
+  openModal('modal-elective-detail');
+}
+
+function copyElectiveDetail() {
+  const txt = (document.getElementById('elective-detail-text')?.textContent || '').trim();
+  if (!txt) { toast('ยังไม่มีข้อความให้คัดลอก', 'error'); return; }
+  navigator.clipboard.writeText(txt)
+    .then(() => toast('คัดลอกแล้ว ✓', 'success'))
+    .catch(() => toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Ctrl+C', 'error'));
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+function val(id)         { return document.getElementById(id)?.value?.trim() || ''; }
+function setText(id, t)  { const el = document.getElementById(id); if(el) el.textContent = t; }
+function show(id)        { const el = document.getElementById(id)||document.querySelector('.'+id); if(el) el.style.display = id === 'search-result' ? 'block' : ''; }
+function hide(id)        { const el = document.getElementById(id)||document.querySelector('.'+id); if(el) el.style.display='none'; }
+function showAll(sel)    { document.querySelectorAll(sel).forEach(e => e.style.display=''); }
+
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? type : '';
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display='none'; }, 3000);
+}
+
+function currentMonthStr() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }).slice(0,7);
+}
+
+function parseRange(str) {
+  if (!str) return null;
+  // Try YYYY-MM-DD ถึง YYYY-MM-DD
+  const m = str.match(/(\d{4}-\d{2}-\d{2})\s*(?:ถึง|to|-)\s*(\d{4}-\d{2}-\d{2})/);
+  if (m) return { start: new Date(m[1]), end: new Date(m[2]) };
+  return null;
+}
+
+function parseRangeToInputs(str) {
+  const r = parseRange(str);
+  if (!r) return { start:'', end:'' };
+  return {
+    start: r.start.toISOString().slice(0,10),
+    end:   r.end.toISOString().slice(0,10),
+  };
+}
+
+
+// ── Holiday Management (inside OPD modal) ────────────────────
+let _currentOPDHolidayId = null; // track custom holiday id for current date
+let _currentOPDDayHolidayId = null; // day-list modal
+
+function updateHolidaySectionInOPD(dateStr) {
+  const [y] = dateStr.split('-').map(Number);
+  const holidays = getThaiHolidays(y);
+  const hol = holidays[dateStr];
+  const override = findHolidayOpOverride(dateStr);
+  const builtinName = getBuiltinHolidayMap(y)[dateStr];
+
+  _currentOPDHolidayId = null;
+  const infoEl = document.getElementById('opd-holiday-info');
+  const addEl  = document.getElementById('opd-holiday-add');
+  const nameEl = document.getElementById('opd-holiday-name');
+  const mainEl = document.getElementById('opd-main-section');
+  const saveBtn = document.getElementById('btn-save-opd');
+  const rmBtn = document.getElementById('btn-remove-holiday-opd');
+
+  const setRmVisible = () => {
+    if (rmBtn) rmBtn.style.display = '';
+  };
+
+  if (hol) {
+    setText('opd-holiday-name-display', hol.name);
+    infoEl.style.display = '';
+    addEl.style.display = 'none';
+    setRmVisible();
+    if (hol.source === 'custom' && hol.id) {
+      if (rmBtn) rmBtn.textContent = '✕ ยกเลิกวันหยุด';
+      _currentOPDHolidayId = hol.id;
+    } else {
+      if (rmBtn) rmBtn.textContent = '🔓 ไม่นับวันหยุดราชการ (ให้มี OPD ได้)';
+    }
+    if (mainEl) mainEl.style.display = 'none';
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'วันหยุด (ไม่สามารถบันทึก OPD)'; }
+    return;
+  }
+
+  if (override && builtinName) {
+    setText('opd-holiday-name-display', `เปิด OPD ได้ — เดิมเป็นวันหยุดราชการ: ${builtinName}`);
+    infoEl.style.display = '';
+    addEl.style.display = 'none';
+    setRmVisible();
+    if (rmBtn) rmBtn.textContent = '↩ คืนวันหยุดราชการ';
+    _currentOPDHolidayId = override.id;
+    if (mainEl) mainEl.style.display = '';
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก'; }
+    return;
+  }
+
+  if (override && !builtinName) {
+    setText('opd-holiday-name-display', 'เปิด OPD ได้ (เลิกนับเป็นวันหยุดไว้แล้ว)');
+    infoEl.style.display = '';
+    addEl.style.display = 'none';
+    setRmVisible();
+    if (rmBtn) rmBtn.textContent = '✕ ลบการตั้งค่านี้';
+    _currentOPDHolidayId = override.id;
+    if (mainEl) mainEl.style.display = '';
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก'; }
+    return;
+  }
+
+  infoEl.style.display = 'none';
+  addEl.style.display = '';
+  if (rmBtn) rmBtn.style.display = 'none';
+  if (nameEl) nameEl.value = '';
+
+  if (mainEl) mainEl.style.display = '';
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก'; }
+}
+
+function updateHolidaySectionInOPDDay(dateStr) {
+  const [y] = dateStr.split('-').map(Number);
+  const holidays = getThaiHolidays(y);
+  const hol = holidays[dateStr];
+  const override = findHolidayOpOverride(dateStr);
+  const builtinName = getBuiltinHolidayMap(y)[dateStr];
+
+  _currentOPDDayHolidayId = null;
+  const sectionEl = document.getElementById('opd-day-holiday-section');
+  const infoEl = document.getElementById('opd-day-holiday-info');
+  const addEl  = document.getElementById('opd-day-holiday-add');
+  const nameEl = document.getElementById('opd-day-holiday-name');
+  const opdBlock = document.getElementById('opd-day-opd-block');
+  const btnAdd = document.getElementById('btn-opd-day-add');
+  const btnRm = document.getElementById('btn-remove-holiday-opd-day');
+
+  if (!infoEl || !addEl) return;
+  if (sectionEl) sectionEl.style.display = '';
+
+  const showRm = () => { if (btnRm) btnRm.style.display = ''; };
+
+  if (hol) {
+    setText('opd-day-holiday-name-display', hol.name);
+    infoEl.style.display = '';
+    addEl.style.display = 'none';
+    showRm();
+    if (hol.source === 'custom' && hol.id) {
+      if (btnRm) btnRm.textContent = '✕ ยกเลิกวันหยุด';
+      _currentOPDDayHolidayId = hol.id;
+    } else {
+      if (btnRm) btnRm.textContent = '🔓 ไม่นับวันหยุดราชการ (ให้มี OPD ได้)';
+    }
+    if (opdBlock) opdBlock.style.display = 'none';
+    if (btnAdd) btnAdd.style.display = 'none';
+    return;
+  }
+
+  if (override && builtinName) {
+    setText('opd-day-holiday-name-display', `เปิด OPD ได้ — เดิม: ${builtinName}`);
+    infoEl.style.display = '';
+    addEl.style.display = 'none';
+    showRm();
+    if (btnRm) btnRm.textContent = '↩ คืนวันหยุดราชการ';
+    _currentOPDDayHolidayId = override.id;
+    if (opdBlock) opdBlock.style.display = '';
+    if (btnAdd) btnAdd.style.display = '';
+    return;
+  }
+
+  if (override && !builtinName) {
+    setText('opd-day-holiday-name-display', 'เปิด OPD (เลิกนับเป็นวันหยุดไว้)');
+    infoEl.style.display = '';
+    addEl.style.display = 'none';
+    showRm();
+    if (btnRm) btnRm.textContent = '✕ ลบการตั้งค่า';
+    _currentOPDDayHolidayId = override.id;
+    if (opdBlock) opdBlock.style.display = '';
+    if (btnAdd) btnAdd.style.display = '';
+    return;
+  }
+
+  infoEl.style.display = 'none';
+  addEl.style.display = '';
+  if (nameEl) nameEl.value = '';
+  if (btnRm) btnRm.style.display = 'none';
+  if (opdBlock) opdBlock.style.display = '';
+  if (btnAdd) btnAdd.style.display = '';
+}
+
+async function addHolidayFromOPDDay() {
+  const date = val('opd-day-date');
+  const name = val('opd-day-holiday-name');
+  if (!date || !name) { toast('กรุณากรอกชื่อวันหยุด','error'); return; }
+  try {
+    const res = await api({ action:'save_holiday', data:{ date, name }}, true);
+    if (!res.success) throw new Error(res.error);
+    toast('ตั้งวันหยุดแล้ว ✓','success');
+    const holRes = await apiGet(`action=holidays&month=${state.month}`);
+    state.holidays = holRes.data || [];
+    renderCalendar();
+    updateHolidaySectionInOPDDay(date);
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+}
+
+async function suppressBuiltinHolidayQuick(dateStr) {
+  if (state.user?.role === 'viewer') return;
+  const [y] = dateStr.split('-').map(Number);
+  const bn = getBuiltinHolidayMap(y)[dateStr];
+  if (!bn) return;
+  if (!confirm(`ไม่นับ "${bn}" เป็นวันหยุดในปฏิทิน และให้บันทึก OPD ได้\n\nเหมาะกับกรณีฉุกเฉินตามที่เลือก`)) return;
+  try {
+    const res = await api({ action:'save_holiday', data:{ date: dateStr, name: HOLIDAY_OP_OVERRIDE } }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('เปิดให้มี OPD ในวันนี้แล้ว','success');
+    await reloadHolidaysForMonth();
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+}
+
+async function removeHolidayFromOPDDay() {
+  const date = val('opd-day-date');
+  const [y] = date.split('-').map(Number);
+  const hd = getThaiHolidays(y)[date];
+  const override = findHolidayOpOverride(date);
+
+  if (hd && hd.source === 'builtin') {
+    const bn = getBuiltinHolidayMap(y)[date];
+    if (!confirm(`ไม่นับ "${bn}" เป็นวันหยุด — ให้มี OPD ได้\n\nเหมาะกับกรณีฉุกเฉิน`)) return;
+    try {
+      const res = await api({ action:'save_holiday', data:{ date, name: HOLIDAY_OP_OVERRIDE } }, true);
+      if (!res.success) throw new Error(res.error);
+      toast('เปิดให้มี OPD ในวันนี้แล้ว','success');
+      await reloadHolidaysForMonth();
+      updateHolidaySectionInOPDDay(date);
+      renderOPDDayList(date);
+    } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+    return;
+  }
+
+  if (!_currentOPDDayHolidayId) return;
+  let msg = 'ยกเลิกวันหยุดที่เพิ่มเองหรือไม่?';
+  if (override && !hd) {
+    msg = getBuiltinHolidayMap(y)[date]
+      ? 'คืนวันนี้เป็นวันหยุดราชการตามปฏิทินหรือไม่?'
+      : 'ลบการตั้งค่าเปิด OPD พิเศษสำหรับวันนี้หรือไม่?';
+  }
+  if (!confirm(msg)) return;
+  try {
+    const res = await api({ action:'delete_holiday', id: _currentOPDDayHolidayId }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('อัปเดตแล้ว','success');
+    await reloadHolidaysForMonth();
+    updateHolidaySectionInOPDDay(date);
+    renderOPDDayList(date);
+  } catch(e) { toast('ลบไม่ได้: '+e.message,'error'); }
+}
+
+async function removeHolidayFromOPD() {
+  const date = val('opd-date');
+  const [y] = date.split('-').map(Number);
+  const hd = getThaiHolidays(y)[date];
+  const override = findHolidayOpOverride(date);
+
+  if (hd && hd.source === 'builtin') {
+    const bn = getBuiltinHolidayMap(y)[date];
+    if (!confirm(`ไม่นับ "${bn}" เป็นวันหยุด — ให้มี OPD ได้`)) return;
+    try {
+      const res = await api({ action:'save_holiday', data:{ date, name: HOLIDAY_OP_OVERRIDE } }, true);
+      if (!res.success) throw new Error(res.error);
+      toast('เปิดให้มี OPD ในวันนี้แล้ว','success');
+      await reloadHolidaysForMonth();
+      updateHolidaySectionInOPD(date);
+    } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+    return;
+  }
+
+  if (!_currentOPDHolidayId) return;
+  let msg = 'ยกเลิกวันหยุดที่เพิ่มเองหรือไม่?';
+  if (override && !hd) {
+    msg = getBuiltinHolidayMap(y)[date]
+      ? 'คืนวันนี้เป็นวันหยุดราชการตามปฏิทินหรือไม่?'
+      : 'ลบการตั้งค่าเปิด OPD พิเศษหรือไม่?';
+  }
+  if (!confirm(msg)) return;
+  try {
+    const res = await api({ action:'delete_holiday', id: _currentOPDHolidayId }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('อัปเดตแล้ว','success');
+    await reloadHolidaysForMonth();
+    updateHolidaySectionInOPD(date);
+  } catch(e) { toast('ลบไม่ได้: '+e.message,'error'); }
+}
+
+async function addHolidayFromOPD() {
+  const date = val('opd-date');
+  const name = val('opd-holiday-name');
+  if (!date || !name) { toast('กรุณากรอกชื่อวันหยุด','error'); return; }
+  try {
+    const res = await api({ action:'save_holiday', data:{ date, name }}, true);
+    if (!res.success) throw new Error(res.error);
+    toast('เพิ่มวันหยุดแล้ว ✓','success');
+    // reload holidays + rerender
+    const holRes = await apiGet(`action=holidays&month=${state.month}`);
+    state.holidays = holRes.data || [];
+    renderCalendar();
+    updateHolidaySectionInOPD(date);
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+}
+
+async function removeHoliday(id) {
+  if (!confirm('ลบวันหยุดนี้?')) return;
+  try {
+    const res = await api({ action:'delete_holiday', id }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('ลบวันหยุดแล้ว','success');
+    await loadPage();
+  } catch(e) { toast('ลบไม่ได้: '+e.message,'error'); }
+}
+
+// ── Archive & Stats ──────────────────────────────────────────
+async function previewArchive() {
+  const month = val('archive-month');
+  if (!month) { toast('เลือกเดือนก่อน','error'); return; }
+  try {
+    const res = await apiGet(`action=archive_preview&target_month=${month}`);
+    const d = res.data || { count:0, electives:[] };
+    const el = document.getElementById('archive-preview-content');
+    if (d.count === 0) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--gray4)">ไม่มี Elective ที่สิ้นสุดในเดือนนี้</p>';
+      hide('btn-archive-delete');
+    } else {
+      const list = d.electives.map(e =>
+        `<div style="font-size:12px;padding:3px 0">• ${e.name} (${e.level||'—'}) — ${e.date_range||''}</div>`
+      ).join('');
+      el.innerHTML = `<p style="font-size:13px;font-weight:600;margin-bottom:8px">พบ ${d.count} คน ที่จะถูกลบ:</p>${list}`;
+      show('btn-archive-delete');
+    }
+    show('archive-preview');
+  } catch(e) { toast('โหลดไม่ได้: '+e.message,'error'); }
+}
+
+async function executeArchiveDelete() {
+  const month = val('archive-month');
+  if (!month) return;
+  const monthLabel = formatMonthLabel(month);
+  if (!confirm(`⚠️ ยืนยันลบ Elective + OPD ของเดือน ${monthLabel}?\n\nระบบจะบันทึกสถิติไว้ก่อนลบ\nการลบนี้กู้คืนไม่ได้!`)) return;
+  try {
+    const res = await api({ action:'archive_and_delete_month', target_month: month }, true);
+    if (!res.success) throw new Error(res.error);
+    toast(`ลบแล้ว ${res.deleted} คน + บันทึกสถิติแล้ว ✓`,'success');
+    hide('archive-preview');
+    hide('btn-archive-delete');
+    await loadPage();
+  } catch(e) { toast('ลบไม่ได้: '+e.message,'error'); }
+}
+
+function formatMonthLabel(monthStr) {
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const [y,m] = monthStr.split('-').map(Number);
+  return `${monthsTH[m]} ${y + 543}`;
+}
+
+
+async function loadArchiveStats() {
+  const el = document.getElementById('archive-stats-list');
+  el.innerHTML = '<span style="color:var(--gray3)">กำลังโหลด...</span>';
+  try {
+    const res = await apiGet('action=elective_stats');
+    const archived = res.data || [];
+
+    // รวม current electives ด้วย
+    const currentByMonth = {};
+    state.electives.forEach(e => {
+      const r = parseRange(e.date_range || '');
+      if (!r) return;
+      const mKey = r.start.toISOString().slice(0,7);
+      if (!currentByMonth[mKey]) currentByMonth[mKey] = { total:0, byLevel:{}, byHospital:{} };
+      currentByMonth[mKey].total++;
+      const lvl = e.level || 'ไม่ระบุ';
+      currentByMonth[mKey].byLevel[lvl] = (currentByMonth[mKey].byLevel[lvl]||0) + 1;
+    });
+
+    const allMonths = new Map();
+    archived.forEach(s => {
+      allMonths.set(s.month, { total: s.total, byLevel: JSON.parse(s.by_level || '{}'), isArchived: true });
+    });
+    Object.entries(currentByMonth).forEach(([m, d]) => {
+      if (!allMonths.has(m)) allMonths.set(m, { ...d, isArchived: false });
+    });
+
+    if (!allMonths.size) {
+      el.innerHTML = '<span style="color:var(--gray3)">ยังไม่มีข้อมูลสถิติ</span>';
+      return;
+    }
+
+    const sorted = [...allMonths.entries()].sort((a,b) => b[0].localeCompare(a[0]));
+    let html = '';
+    sorted.forEach(([month, d]) => {
+      const label = formatMonthLabel(month);
+      const statusBadge = d.isArchived
+        ? '<span style="color:#065f46;font-size:10px"> [Archived]</span>'
+        : '<span style="color:#1e40af;font-size:10px"> [Active]</span>';
+      const levels = Object.entries(d.byLevel).map(([k,v]) => `${k}:${v}`).join(', ');
+      html += `<div style="padding:4px 0;border-bottom:1px dotted var(--gray2)">
+        <strong>${label}</strong>${statusBadge} — <span style="color:var(--navy);font-weight:700">${d.total} คน</span>
+        ${levels ? `<span style="color:var(--gray4);margin-left:8px">(${levels})</span>` : ''}
+      </div>`;
+    });
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--red)">โหลดไม่ได้: ${e.message}</span>`;
+  }
+}
+
+async function openStatsModal() {
+  openModal('modal-stats');
+  initElectiveReportUI();
+  const el = document.getElementById('stats-summary-content');
+  const cardsEl = document.getElementById('stats-month-cards');
+  if (cardsEl) cardsEl.innerHTML = '<p class="empty-state">กำลังโหลด...</p>';
+  try {
+    // ดึงสถิติจาก DB
+    const res = await apiGet('action=elective_stats');
+    const archived = res.data || [];
+
+    // สร้างสถิติจาก current electives ด้วย
+    const currentByMonth = {};
+    state.electives.forEach(e => {
+      const r = parseRange(e.date_range || '');
+      if (!r) return;
+      const mKey = r.start.toISOString().slice(0,7);
+      if (!currentByMonth[mKey]) currentByMonth[mKey] = { total:0, byLevel:{}, byHospital:{} };
+      currentByMonth[mKey].total++;
+      const lvl = e.level || 'ไม่ระบุ';
+      currentByMonth[mKey].byLevel[lvl] = (currentByMonth[mKey].byLevel[lvl]||0) + 1;
+      const hosp = e.from_hospital || 'ไม่ระบุ';
+      currentByMonth[mKey].byHospital[hosp] = (currentByMonth[mKey].byHospital[hosp]||0) + 1;
+    });
+
+    // รวมทั้ง archived + current
+    const allMonths = new Map();
+    archived.forEach(s => {
+      allMonths.set(s.month, {
+        total: s.total,
+        byLevel: JSON.parse(s.by_level || '{}'),
+        byHospital: JSON.parse(s.by_hospital || '{}'),
+        isArchived: true,
+      });
+    });
+    Object.entries(currentByMonth).forEach(([m, d]) => {
+      if (!allMonths.has(m)) {
+        allMonths.set(m, { ...d, isArchived: false });
+      }
+    });
+
+    if (!allMonths.size) {
+      if (cardsEl) cardsEl.innerHTML = '<p class="empty-state">ยังไม่มีข้อมูลสถิติ</p>';
+      return;
+    }
+
+    // Sort by month desc
+    const sorted = [...allMonths.entries()].sort((a,b) => b[0].localeCompare(a[0]));
+
+    let html = '<div style="display:flex;flex-direction:column;gap:12px">';
+    sorted.forEach(([month, d]) => {
+      const label = formatMonthLabel(month);
+      const badge = d.isArchived
+        ? '<span class="badge" style="background:#d1fae5;color:#065f46;font-size:10px;margin-left:6px">Archived</span>'
+        : '<span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;margin-left:6px">Active</span>';
+
+      const levelTags = Object.entries(d.byLevel).map(([k,v]) =>
+        `<span style="font-size:11px;background:var(--gray1);padding:2px 6px;border-radius:4px;margin:2px">${k}: ${v}</span>`
+      ).join('');
+      const hospTags = Object.entries(d.byHospital).map(([k,v]) =>
+        `<span style="font-size:11px;background:var(--teal2);padding:2px 6px;border-radius:4px;margin:2px">${k}: ${v}</span>`
+      ).join('');
+
+      html += `<div style="border:1px solid var(--gray2);border-radius:var(--radius-sm);padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:700;font-size:14px">${label}${badge}</span>
+          <span style="font-size:20px;font-weight:700;color:var(--navy)">${d.total} <span style="font-size:12px;font-weight:400;color:var(--gray4)">คน</span></span>
+        </div>
+        <div style="margin-bottom:4px"><span style="font-size:11px;color:var(--gray4);font-weight:600">ระดับ:</span> ${levelTags || '—'}</div>
+        <div><span style="font-size:11px;color:var(--gray4);font-weight:600">สังกัด:</span> ${hospTags || '—'}</div>
+      </div>`;
+    });
+    html += '</div>';
+    if (cardsEl) cardsEl.innerHTML = html;
+
+    // dashboard data
+    _statsAllMonths = allMonths;
+    initStatsDashboardUI(allMonths);
+    await ensureChartJs();
+    renderStatsDashboard();
+  } catch(e) {
+    if (cardsEl) cardsEl.innerHTML = `<p class="empty-state" style="color:var(--red)">โหลดไม่ได้: ${e.message}</p>`;
+  }
+}
+
+let _statsAllMonths = null; // Map<YYYY-MM, {total, byLevel, byHospital, isArchived}>
+let _chartLevelPie = null;
+let _chartMonthBar = null;
+let _chartZoom = null;
+let _lastPieSpec = null;
+let _lastBarSpec = null;
+
+async function ensureChartJs() {
+  if (window.Chart) return true;
+  return await new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+function initStatsDashboardUI(allMonths) {
+  const yearSel = document.getElementById('dash-year');
+  const monthSel = document.getElementById('dash-month');
+  if (!yearSel || !monthSel) return;
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  // years present in stats
+  const years = new Set([...allMonths.keys()].map(k => parseInt(k.slice(0,4), 10)));
+  const sortedYears = [...years].sort((a,b) => b - a);
+  yearSel.innerHTML = sortedYears.map(y => `<option value="${y}">${y + 543}</option>`).join('');
+
+  // months present (for donut choose specific month)
+  const sortedMonths = [...allMonths.keys()].sort((a,b) => b.localeCompare(a));
+  monthSel.innerHTML = sortedMonths.map(ym => {
+    const y = parseInt(ym.slice(0,4),10);
+    const m = parseInt(ym.slice(5,7),10);
+    return `<option value="${ym}">${monthsTH[m]} ${y + 543}</option>`;
+  }).join('');
+
+  // default: current month/year if exists, else latest
+  const cur = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }); // YYYY-MM-DD
+  const curYm = cur.slice(0,7);
+  if ([...monthSel.options].some(o => o.value === curYm)) monthSel.value = curYm;
+  else if (sortedMonths[0]) monthSel.value = sortedMonths[0];
+
+  const curY = parseInt(cur.slice(0,4),10);
+  if ([...yearSel.options].some(o => parseInt(o.value,10) === curY)) yearSel.value = String(curY);
+  else if (sortedYears[0]) yearSel.value = String(sortedYears[0]);
+}
+
+function renderStatsDashboard() {
+  if (!_statsAllMonths) return;
+  if (!window.Chart) {
+    toast('โหลดกราฟไม่สำเร็จ (Chart.js)', 'error');
+    return;
+  }
+
+  const year = parseInt(document.getElementById('dash-year')?.value || '', 10);
+  const monthKey = document.getElementById('dash-month')?.value || '';
+  if (!year || !monthKey) return;
+
+  // Doughnut: byLevel of selected month
+  const d = _statsAllMonths.get(monthKey) || { total: 0, byLevel: {} };
+  const entries = Object.entries(d.byLevel || {});
+  entries.sort((a,b) => b[1] - a[1]);
+  const labels = entries.map(([k]) => k);
+  const values = entries.map(([,v]) => v);
+  const pieMeta = document.getElementById('dash-pie-meta');
+  if (pieMeta) pieMeta.textContent = d.total ? `${d.total} คน` : '—';
+
+  const pieCtx = document.getElementById('chart-level-pie');
+  if (_chartLevelPie) { _chartLevelPie.destroy(); _chartLevelPie = null; }
+  _lastPieSpec = { labels, values, total: d.total || 0, monthKey };
+  _chartLevelPie = new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: [
+          '#1B3A6B','#0F7B6C','#B8860B','#C0392B','#6B7280',
+          '#2456A4','#10b981','#f59e0b','#ef4444','#9ca3af'
+        ],
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed}` } }
+      },
+      cutout: '62%',
+    }
+  });
+  try {
+    pieCtx.onclick = () => openChartZoom('pie');
+  } catch (e) { /* ignore */ }
+
+  // Bar: totals by month for selected year
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const barLabels = Array.from({length:12}, (_,i)=>monthsTH[i+1]);
+  const barValues = Array.from({length:12}, (_,i)=>{
+    const key = `${year}-${String(i+1).padStart(2,'0')}`;
+    return _statsAllMonths.get(key)?.total || 0;
+  });
+  const sum = barValues.reduce((a,b)=>a+b,0);
+  const barMeta = document.getElementById('dash-bar-meta');
+  if (barMeta) barMeta.textContent = sum ? `รวม ${sum} คน` : '—';
+
+  const barCtx = document.getElementById('chart-month-bar');
+  if (_chartMonthBar) { _chartMonthBar.destroy(); _chartMonthBar = null; }
+  _lastBarSpec = { labels: barLabels, values: barValues, year };
+  _chartMonthBar = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [{
+        label: 'จำนวน Elective',
+        data: barValues,
+        backgroundColor: '#2456A4',
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    }
+  });
+  try {
+    barCtx.onclick = () => openChartZoom('bar');
+  } catch (e) { /* ignore */ }
+}
+
+function openChartZoom(kind) {
+  if (!window.Chart) { toast('ยังโหลดกราฟไม่สำเร็จ', 'error'); return; }
+  const canvas = document.getElementById('chart-zoom-canvas');
+  const titleEl = document.getElementById('chart-zoom-title');
+  if (!canvas || !titleEl) return;
+
+  if (_chartZoom) { _chartZoom.destroy(); _chartZoom = null; }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  if (kind === 'pie') {
+    const spec = _lastPieSpec;
+    if (!spec) return;
+    const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const y = parseInt(spec.monthKey.slice(0,4),10);
+    const m = parseInt(spec.monthKey.slice(5,7),10);
+    titleEl.textContent = `🟣 สัดส่วนระดับแพทย์ — ${monthsTH[m]} ${y + 543} (${spec.total} คน)`;
+    _chartZoom = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: spec.labels,
+        datasets: [{
+          data: spec.values,
+          backgroundColor: [
+            '#1B3A6B','#0F7B6C','#B8860B','#C0392B','#6B7280',
+            '#2456A4','#10b981','#f59e0b','#ef4444','#9ca3af'
+          ],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'right' } },
+        cutout: '62%',
+      }
+    });
+  } else {
+    const spec = _lastBarSpec;
+    if (!spec) return;
+    titleEl.textContent = `🟦 จำนวน Elective รายเดือน — ปี ${spec.year + 543}`;
+    _chartZoom = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: spec.labels,
+        datasets: [{
+          label: 'จำนวน Elective',
+          data: spec.values,
+          backgroundColor: '#2456A4',
+          borderRadius: 8,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      }
+    });
+  }
+
+  openModal('modal-chart-zoom');
+}
+
+function closeChartZoom() {
+  closeModal('modal-chart-zoom');
+  if (_chartZoom) { _chartZoom.destroy(); _chartZoom = null; }
+}
+
+function printStatsSummary() {
+  const year = parseInt(document.getElementById('dash-year')?.value || '', 10);
+  const monthKey = document.getElementById('dash-month')?.value || '';
+  const monthLabel = (() => {
+    if (!monthKey) return '';
+    const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const y = parseInt(monthKey.slice(0,4),10);
+    const m = parseInt(monthKey.slice(5,7),10);
+    return `${monthsTH[m]} ${y + 543}`;
+  })();
+
+  const pieImg = (() => {
+    try { return _chartLevelPie?.toBase64Image?.('image/png', 1) || ''; } catch (e) { return ''; }
+  })();
+  const barImg = (() => {
+    try { return _chartMonthBar?.toBase64Image?.('image/png', 1) || ''; } catch (e) { return ''; }
+  })();
+  const cardsHtml = document.getElementById('stats-month-cards')?.innerHTML || '';
+
+  const title = `สรุปจำนวน Elective — ปี ${year ? (year + 543) : '—'} / เดือน ${monthLabel || '—'}`;
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body{font-family:Sarabun,system-ui,sans-serif;margin:22px;color:#111}
+      h1{font-size:16px;margin:0 0 12px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+      .card{border:1px solid #ddd;border-radius:12px;padding:12px}
+      .card h2{font-size:13px;margin:0 0 8px}
+      img{max-width:100%;height:auto;border-radius:10px}
+      .meta{font-size:12px;color:#555;margin-bottom:10px}
+      @media print{.no-print{display:none}}
+      @page{margin:14mm}
+      @media(max-width:800px){.grid{grid-template-columns:1fr}}
+    </style>
+  </head><body>
+    <h1>${escapeHtml(title)}</h1>
+    <div class="grid">
+      <div class="card">
+        <h2>สัดส่วนระดับแพทย์ (เดือนที่เลือก)</h2>
+        ${pieImg ? `<img src="${pieImg}" alt="pie">` : `<div class="meta">ไม่สามารถสร้างรูปกราฟได้</div>`}
+      </div>
+      <div class="card">
+        <h2>จำนวน Elective รายเดือน (ปีที่เลือก)</h2>
+        ${barImg ? `<img src="${barImg}" alt="bar">` : `<div class="meta">ไม่สามารถสร้างรูปกราฟได้</div>`}
+      </div>
+    </div>
+    <div class="card">
+      <h2>รายละเอียดรายเดือน</h2>
+      ${cardsHtml || '<div class="meta">ไม่มีข้อมูล</div>'}
+    </div>
+    <div class="no-print" style="margin-top:12px;text-align:right">
+      <button onclick="window.print()">พิมพ์</button>
+    </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('เปิดหน้าพิมพ์ไม่ได้ (browser block popup)', 'error'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => {
+    try { w.focus(); w.print(); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+function switchStatsTab(panelId) {
+  document.querySelectorAll('#modal-stats .tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#modal-stats .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(panelId)?.classList.add('active');
+  // ปุ่มที่กด
+  try { event?.target?.classList?.add('active'); } catch (e) { /* ignore */ }
+}
+
+// ── Elective Report (Filter/Print/CSV) ─────────────────────────
+const _REPORT_DEFAULT_COLUMNS = [
+  'name', 'level', 'from_hospital', 'date_range', 'ward', 'date_range2', 'ward2', 'status'
+];
+const _REPORT_COLUMN_LABELS = {
+  name: 'ชื่อ',
+  level: 'ระดับ',
+  from_hospital: 'สังกัด',
+  date_range: 'ช่วงที่ 1',
+  ward: 'Ward 1',
+  date_range2: 'ช่วงที่ 2',
+  ward2: 'Ward 2',
+  status: 'สถานะ',
+};
+
+function initElectiveReportUI() {
+  // เติม dropdown เดือน/ปีจากข้อมูล electives ที่มี
+  const yearSel = document.getElementById('report-year');
+  const monthSel = document.getElementById('report-month');
+  const colBox = document.getElementById('report-columns');
+  if (!yearSel || !monthSel || !colBox) return;
+
+  // build year list
+  const years = new Set();
+  (state.electives || []).forEach(e => {
+    const r1 = parseRange(e.date_range || '');
+    const r2 = parseRange(e.date_range2 || '');
+    [r1?.start, r1?.end, r2?.start, r2?.end].filter(Boolean).forEach(d => years.add(d.getFullYear()));
+  });
+  const yNow = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }).slice(0,4);
+  if (!years.size) years.add(parseInt(yNow, 10));
+  const sortedYears = [...years].sort((a,b) => b - a);
+  yearSel.innerHTML = sortedYears.map(y => `<option value="${y}">${y + 543}</option>`).join('');
+
+  // month list
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    return `<option value="${String(m).padStart(2,'0')}">${monthsTH[m]}</option>`;
+  }).join('');
+
+  // default current month/year
+  const cur = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }); // YYYY-MM-DD
+  const curY = cur.slice(0,4);
+  const curM = cur.slice(5,7);
+  if ([...yearSel.options].some(o => o.value === curY)) yearSel.value = curY;
+  monthSel.value = curM;
+
+  // columns checkboxes
+  colBox.innerHTML = _REPORT_DEFAULT_COLUMNS.map(key => {
+    const label = _REPORT_COLUMN_LABELS[key] || key;
+    return `<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--gray4)">
+      <input type="checkbox" class="report-col-cb" value="${key}" checked onchange="updateElectiveReport()">
+      <span>${label}</span>
+    </label>`;
+  }).join('');
+
+  syncReportModeUI();
+  updateElectiveReport();
+}
+
+function syncReportModeUI() {
+  const mode = document.getElementById('report-mode')?.value || 'month';
+  const mf = document.getElementById('report-month-field');
+  if (mf) mf.style.display = mode === 'month' ? '' : 'none';
+}
+
+function getSelectedReportColumns() {
+  return Array.from(document.querySelectorAll('#report-columns .report-col-cb:checked'))
+    .map(cb => cb.value)
+    .filter(Boolean);
+}
+
+function electiveOverlapsMonth(e, yyyy, mm, includePeriod2 = true) {
+  const monthStart = new Date(yyyy, mm - 1, 1);
+  const monthEnd = new Date(yyyy, mm, 0);
+  const r1 = parseRange(e.date_range || '');
+  const r2 = includePeriod2 ? parseRange(e.date_range2 || '') : null;
+  const hit = (r) => r && r.start <= monthEnd && r.end >= monthStart;
+  return hit(r1) || hit(r2);
+}
+
+function electiveOverlapsYear(e, yyyy, includePeriod2 = true) {
+  const yearStart = new Date(yyyy, 0, 1);
+  const yearEnd = new Date(yyyy, 11, 31);
+  const r1 = parseRange(e.date_range || '');
+  const r2 = includePeriod2 ? parseRange(e.date_range2 || '') : null;
+  const hit = (r) => r && r.start <= yearEnd && r.end >= yearStart;
+  return hit(r1) || hit(r2);
+}
+
+function updateElectiveReport() {
+  const mode = document.getElementById('report-mode')?.value || 'month';
+  const y = parseInt(document.getElementById('report-year')?.value || '', 10);
+  const m = parseInt(document.getElementById('report-month')?.value || '', 10);
+  const include2 = Boolean(document.getElementById('report-include-period2')?.checked);
+  const cols = getSelectedReportColumns();
+  const meta = document.getElementById('report-meta');
+  const thead = document.getElementById('report-thead');
+  const tbody = document.getElementById('report-tbody');
+  if (!thead || !tbody || !y) return;
+
+  const list = (state.electives || []).filter(e => (e.status || '') !== 'deleted');
+  const filtered = list.filter(e => mode === 'year'
+    ? electiveOverlapsYear(e, y, include2)
+    : electiveOverlapsMonth(e, y, m || 1, include2)
+  );
+  filtered.sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'th'));
+
+  const title = (() => {
+    if (mode === 'year') return `รายงาน Elective ปี ${y + 543}`;
+    const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `รายงาน Elective เดือน ${monthsTH[m]} ${y + 543}`;
+  })();
+  if (meta) meta.textContent = `${title} — พบ ${filtered.length} คน`;
+
+  const safeCols = cols.length ? cols : ['name'];
+  thead.innerHTML = `<tr>${safeCols.map(c => `<th>${_REPORT_COLUMN_LABELS[c] || c}</th>`).join('')}</tr>`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="${safeCols.length}" class="empty-state">ไม่มีข้อมูลตามเงื่อนไข</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(e => {
+    const row = safeCols.map(c => {
+      const v = (e && typeof e[c] !== 'undefined') ? e[c] : '';
+      return `<td style="font-size:13px">${escapeHtml(String(v || '—'))}</td>`;
+    }).join('');
+    return `<tr>${row}</tr>`;
+  }).join('');
+}
+
+function downloadElectiveReportCSV() {
+  const mode = document.getElementById('report-mode')?.value || 'month';
+  const y = parseInt(document.getElementById('report-year')?.value || '', 10);
+  const m = parseInt(document.getElementById('report-month')?.value || '', 10);
+  const include2 = Boolean(document.getElementById('report-include-period2')?.checked);
+  const cols = getSelectedReportColumns();
+  const safeCols = cols.length ? cols : ['name'];
+  if (!y) return;
+
+  const list = (state.electives || []).filter(e => (e.status || '') !== 'deleted');
+  const filtered = list.filter(e => mode === 'year'
+    ? electiveOverlapsYear(e, y, include2)
+    : electiveOverlapsMonth(e, y, m || 1, include2)
+  ).sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'th'));
+
+  const header = safeCols.map(c => _REPORT_COLUMN_LABELS[c] || c);
+  const rows = filtered.map(e => safeCols.map(c => (e && typeof e[c] !== 'undefined') ? String(e[c] || '') : ''));
+  const csv = toCsv([header, ...rows]);
+  const filename = mode === 'year'
+    ? `electives_${y}.csv`
+    : `electives_${y}-${String(m || 1).padStart(2,'0')}.csv`;
+  downloadTextFile(csv, filename, 'text/csv;charset=utf-8');
+}
+
+function printElectiveReport() {
+  const title = document.getElementById('report-meta')?.textContent || 'รายงาน Elective';
+  const table = document.getElementById('report-table');
+  if (!table) return;
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body{font-family:Sarabun,system-ui,sans-serif;margin:24px;color:#111}
+      h1{font-size:16px;margin:0 0 12px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #ddd;padding:6px 8px;vertical-align:top}
+      th{background:#f5f5f5;text-align:left}
+      @media print{button{display:none}}
+    </style>
+  </head><body>
+    <h1>${escapeHtml(title)}</h1>
+    ${table.outerHTML}
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { toast('เปิดหน้าพิมพ์ไม่ได้ (browser block popup)', 'error'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // เรียกพิมพ์จากหน้าต้นทาง (กันปัญหา <\/script> ใน template literal)
+  setTimeout(() => {
+    try { w.focus(); w.print(); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+function toCsv(rows) {
+  // Use CRLF for best Excel compatibility on Windows
+  return rows.map(r => r.map(cell => {
+    const s = String(cell ?? '');
+    const escaped = s.replace(/\"/g, '\"\"');
+    return /[\",\n]/.test(s) ? `"${escaped}"` : escaped;
+  }).join(',')).join('\r\n');
+}
+
+function downloadTextFile(text, filename, mime) {
+  const isCsv = String(mime || '').toLowerCase().includes('text/csv');
+  const payload = isCsv ? (`\ufeff${text}`) : text; // UTF-8 BOM for Excel
+  const blob = new Blob([payload], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── LINE Bot Template Editor ─────────────────────────────────
+const DEFAULT_TEMPLATES_FRONTEND = {
+  'bot_welcome':
+    '📌 วิธีใช้ LINE Bot\n' +
+    'พิมพ์ “ชื่อ นามสกุล” ให้ถูกต้อง (เช่น ชื่อบนตาราง Elective/แพทย์) แล้วบอทจะตอบข้อมูลการดูงานให้อัตโนมัติค่ะ\n\n' +
+    'ตัวอย่าง:\n' +
+    '- สมชาย ใจดี\n' +
+    '- สมหญิง ใจเย็น\n\n' +
+    'หมายเหตุ: ถ้าพิมพ์ไม่ตรง/สะกดผิด บอทอาจไม่ตอบ (Silent Mode)\n' +
+    '📚 คู่มือ: {{pdf_manual_url}}',
+  'bot_period2_block':   '• ช่วงที่ 2 ({{period2_dates}}): {{ward2}}\n',
+  'bot_chief_block':
+    '📍 สิ่งที่ต้องทำตอนนี้:\nรบกวนแอด LINE พี่ Chief ({{chief1_name}})\n👉 {{chief1_link}}',
+  'bot_chief2_block':
+    '\nและรบกวนแอด LINE พี่ Chief ช่วงที่ 2 ({{chief2_name}})\n👉 {{chief2_link}}',
+  'bot_opd_calendar_block': '🏥 ตาราง OPD:\n{{opd_lines}}',
+  'bot_opd_fallback_block': '🏥 OPD: {{opd_schedule}}\n⚡ หน้าที่: {{opd_role}}',
+  'bot_elective_reply':
+    'คุณหมอ {{name}} ({{level}})\n\n' +
+    '{{period1_block}}{{period2_block}}\n\n' +
+    '{{opd_block}}\n\n' +
+    '📚 คู่มือ: {{pdf_manual_url}}',
+  'bot_elective_period1_block':
+    '• ช่วงที่ 1 ({{period1_dates}}): {{ward1}}\n' +
+    '  - กรุณาติดต่อ LINE Chief เพื่อราวด์วอร์ดช่วงที่ 1: {{chief1_name}} {{chief1_line}}\n' +
+    '  - อาจารย์ที่ต้องราวด์ด้วย: {{supervise1_list}}',
+  'bot_elective_period2_block':
+    '\n• ช่วงที่ 2 ({{period2_dates}}): {{ward2}}\n' +
+    '  - Chief: {{chief2_name}} {{chief2_line}}\n' +
+    '  - อาจารย์ที่ต้องราวด์ด้วย: {{supervise2_list}}',
+};
+
+async function openLineBotModal() {
+  openModal('modal-linebot');
+  await loadLineBotTemplates();
+}
+
+async function loadLineBotTemplates() {
+  try {
+    // โหลด templates จาก backend
+    const res = await apiGet('action=templates');
+    const tpls = {};
+    if (res.data) res.data.forEach(t => tpls[t.key] = t.value);
+
+    const get = key => tpls[key] || DEFAULT_TEMPLATES_FRONTEND[key] || '';
+    document.getElementById('tpl-welcome-text').value = get('bot_welcome');
+    document.getElementById('tpl-period2-text').value = get('bot_period2_block');
+    document.getElementById('tpl-chief-text').value   = get('bot_chief_block');
+    document.getElementById('tpl-chief2-text').value  = get('bot_chief2_block');
+    document.getElementById('tpl-opd-cal-text').value = get('bot_opd_calendar_block');
+    document.getElementById('tpl-opd-fb-text').value  = get('bot_opd_fallback_block');
+    document.getElementById('tpl-elective-reply-text').value = get('bot_elective_reply');
+    document.getElementById('tpl-elc-p1-text').value = get('bot_elective_period1_block');
+    document.getElementById('tpl-elc-p2-text').value = get('bot_elective_period2_block');
+  } catch(e) {
+    // ถ้า backend ไม่มี templates endpoint ใช้ default
+    document.getElementById('tpl-welcome-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_welcome'];
+    document.getElementById('tpl-period2-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_period2_block'];
+    document.getElementById('tpl-chief-text').value   = DEFAULT_TEMPLATES_FRONTEND['bot_chief_block'];
+    document.getElementById('tpl-chief2-text').value  = DEFAULT_TEMPLATES_FRONTEND['bot_chief2_block'];
+    document.getElementById('tpl-opd-cal-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_opd_calendar_block'];
+    document.getElementById('tpl-opd-fb-text').value  = DEFAULT_TEMPLATES_FRONTEND['bot_opd_fallback_block'];
+    document.getElementById('tpl-elective-reply-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_reply'];
+    document.getElementById('tpl-elc-p1-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_period1_block'];
+    document.getElementById('tpl-elc-p2-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_period2_block'];
+  }
+  // โหลด settings
+  try {
+    const sRes = await apiGet('action=settings');
+    if (sRes.data) {
+      const pdfUrl = sRes.data.find(s => s.key === 'pdf_manual_url');
+      const groupId = sRes.data.find(s => s.key === 'line_group_id');
+      if (pdfUrl) document.getElementById('setting-pdf-url').value = pdfUrl.value || '';
+      if (groupId) document.getElementById('setting-group-id').value = groupId.value || '';
+    }
+  } catch (e) { /* silent */ }
+}
+
+async function saveLineBotTemplates() {
+  try {
+    const templates = [
+      { key: 'bot_welcome',              value: document.getElementById('tpl-welcome-text').value },
+      { key: 'bot_period2_block',        value: document.getElementById('tpl-period2-text').value },
+      { key: 'bot_chief_block',          value: document.getElementById('tpl-chief-text').value },
+      { key: 'bot_chief2_block',         value: document.getElementById('tpl-chief2-text').value },
+      { key: 'bot_opd_calendar_block',   value: document.getElementById('tpl-opd-cal-text').value },
+      { key: 'bot_opd_fallback_block',   value: document.getElementById('tpl-opd-fb-text').value },
+      { key: 'bot_elective_reply',       value: document.getElementById('tpl-elective-reply-text').value },
+      { key: 'bot_elective_period1_block', value: document.getElementById('tpl-elc-p1-text').value },
+      { key: 'bot_elective_period2_block', value: document.getElementById('tpl-elc-p2-text').value },
+    ];
+    const pdfUrl = document.getElementById('setting-pdf-url').value;
+    const res = await api({ action: 'save_templates', templates, pdf_manual_url: pdfUrl }, true);
+    if (!res.success) throw new Error(res.error || 'บันทึกไม่ได้');
+    closeModal('modal-linebot');
+    toast('บันทึก Template แล้ว ✓', 'success');
+    // อัปเดตปุ่มคู่มือทันที (ไม่ต้องรีโหลดหน้า)
+    state.publicSettings = [
+      { key: 'pdf_manual_url', value: pdfUrl },
+      ...state.publicSettings.filter(x => x.key !== 'pdf_manual_url'),
+    ];
+    applyManualLink();
+  } catch(e) { toast('บันทึกไม่ได้: ' + e.message, 'error'); }
+}
+
+function resetLineBotTemplates() {
+  if (!confirm('รีเซ็ตกลับเป็นค่าเริ่มต้น?')) return;
+  document.getElementById('tpl-welcome-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_welcome'];
+  document.getElementById('tpl-period2-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_period2_block'];
+  document.getElementById('tpl-chief-text').value   = DEFAULT_TEMPLATES_FRONTEND['bot_chief_block'];
+  document.getElementById('tpl-chief2-text').value  = DEFAULT_TEMPLATES_FRONTEND['bot_chief2_block'];
+  document.getElementById('tpl-opd-cal-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_opd_calendar_block'];
+  document.getElementById('tpl-opd-fb-text').value  = DEFAULT_TEMPLATES_FRONTEND['bot_opd_fallback_block'];
+  document.getElementById('tpl-elective-reply-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_reply'];
+  document.getElementById('tpl-elc-p1-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_period1_block'];
+  document.getElementById('tpl-elc-p2-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_period2_block'];
+  toast('รีเซ็ตแล้ว — กด บันทึก เพื่อบันทึก', 'success');
+}
+
+function previewTemplate(which) {
+  const sampleData = {
+    name: 'สมชาย ใจดี',
+    type: 'Resident-Med',
+    level: 'Extern',
+    period1_dates: '1 พ.ค. - 31 พ.ค. 2568',
+    ward1: 'วอร์ดชาย',
+    period2_dates: '1 มิ.ย. - 30 มิ.ย. 2568',
+    ward2: 'วอร์ดหญิง',
+    chief1_name: 'แพทย์หญิงสุดา',
+    chief1_link: '@suda_chief',
+    chief2_name: 'แพทย์หญิงมาลี',
+    chief2_link: '@mali_chief',
+    chief_male_name: 'แพทย์หญิงสุดา',
+    chief_male_link: '@suda_chief',
+    chief_female_name: 'แพทย์หญิงมาลี',
+    chief_female_link: '@mali_chief',
+    opd_schedule: 'ทุกวันจันทร์ 09:00-12:00',
+    opd_role: 'ตรวจกับอาจารย์',
+    pdf_manual_url: 'https://drive.google.com/example',
+    opd_block: '🏥 ตาราง OPD:\n• 5 พ.ค. — อ.สมศักดิ์ (นั่งกับอาจารย์)',
+    period2_block: '• ช่วงที่ 2 (1 มิ.ย. - 30 มิ.ย. 2568): วอร์ดหญิง\n',
+    chief_block: '📍 สิ่งที่ต้องทำ:\nรบกวนแอด LINE พี่ Chief (แพทย์หญิงสุดา)\n👉 @suda_chief',
+    chief1_line: '@suda_chief',
+    chief2_line: '@mali_chief',
+    supervise1_list: 'อ.สมชาย, อ.สมหญิง',
+    supervise2_list: 'อ.ใจดี, อ.ใจเย็น',
+  };
+
+  // ตัวอย่างสำหรับ Elective Reply (period1_block/period2_block)
+  sampleData.period1_block =
+    `• ช่วงที่ 1 (${sampleData.period1_dates}): ${sampleData.ward1}\n` +
+    `  - กรุณาติดต่อ LINE Chief เพื่อราวด์วอร์ดช่วงที่ 1: ${sampleData.chief1_name} ${sampleData.chief1_line}\n` +
+    `  - อาจารย์ที่ต้องราวด์ด้วย: ${sampleData.supervise1_list}`;
+  sampleData.period2_block =
+    `\n• ช่วงที่ 2 (${sampleData.period2_dates}): ${sampleData.ward2}\n` +
+    `  - Chief: ${sampleData.chief2_name} ${sampleData.chief2_line}\n` +
+    `  - อาจารย์ที่ต้องราวด์ด้วย: ${sampleData.supervise2_list}`;
+
+  const tplText = document.getElementById(`tpl-${which}-text`)?.value || '';
+  let result = tplText;
+  for (const [k,v] of Object.entries(sampleData)) {
+    result = result.split(`{{${k}}}`).join(v);
+  }
+  result = result.replace(/\{\{[^}]+\}\}/g, '');
+
+  const previewEl = document.getElementById(`preview-${which}`);
+  if (previewEl) {
+    previewEl.textContent = result;
+    previewEl.style.display = 'block';
+  }
+}
+
+function switchLineBotTab(tabId) {
+  document.querySelectorAll('#modal-linebot .tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#modal-linebot .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId)?.classList.add('active');
+  try { event?.target?.classList?.add('active'); } catch (e) { /* ignore */ }
+}
+
+</script>
+</body>
+</html>
