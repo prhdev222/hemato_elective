@@ -294,6 +294,8 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   .empty-state{font-size:15px;padding:24px 12px}
 }
 </style>
+<!-- LIFF SDK -->
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 
@@ -1035,13 +1037,29 @@ let state = {
 };
 
 // ── Init ─────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+function getLiffIdFromPublicSettings() {
+  return (state.publicSettings.find(x => x.key === 'liff_id')?.value || '').trim();
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
   applyFontSizePreference(localStorage.getItem(FONT_SIZE_STORAGE_KEY) || 'md');
 
   // เติมค่า backend url
   const urlInput = document.getElementById('backend-url');
   if (urlInput) urlInput.value = getWorkerUrl();
 
+  // โหลด public_settings ก่อน (รวม liff_id จาก Worker env)
+  try {
+    const pub = await apiGet('action=public_settings');
+    if (pub?.success && Array.isArray(pub.data)) state.publicSettings = pub.data;
+  } catch (e) { /* offline / CORS → ใช้ flow เดิม */ }
+  applyManualLink();
+
+  // ── ลอง init LIFF ก่อน ──
+  const liffReady = await tryInitLiff();
+  if (liffReady) return; // LIFF จัดการ login ให้แล้ว
+
+  // ── เปิดผ่าน browser ปกติ ──
   const saved = sessionStorage.getItem('hsos_token');
   const savedUser = sessionStorage.getItem('hsos_user');
   if (saved && savedUser) {
@@ -1057,6 +1075,53 @@ window.addEventListener('DOMContentLoaded', () => {
     hide('loader');
   }
 });
+
+// ── LIFF init & login ────────────────────────────────────────
+async function tryInitLiff() {
+  try {
+    const liffId = getLiffIdFromPublicSettings();
+    if (!liffId) return false;
+    if (!window.liff) return false;
+    await liff.init({ liffId });
+    if (!liff.isInClient()) return false; // เปิดผ่าน browser ปกติ → ใช้ flow เดิม
+
+    // อยู่ใน LINE app
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return true; // redirect กำลังเกิดขึ้น
+    }
+
+    // ดึง profile
+    const profile = await liff.getProfile();
+    state.liffProfile = profile; // เก็บไว้ใช้ทั่วหน้า
+
+    // เช็ค admin จาก backend
+    show('loader');
+    const res = await api({ action: 'liff_login', lineUserId: profile.userId, displayName: profile.displayName });
+
+    if (res.success && res.token) {
+      // เป็น admin/editor → login อัตโนมัติ
+      state.token = res.token;
+      state.user  = res.user;
+      sessionStorage.removeItem('hsos_mode');
+      sessionStorage.setItem('hsos_token', res.token);
+      sessionStorage.setItem('hsos_user', JSON.stringify(res.user));
+      onLoginSuccess();
+    } else {
+      // ไม่มีสิทธิ์ → เปิดเป็น Viewer พร้อมแจ้ง
+      state.user  = { id: 'public', name: profile.displayName || 'Viewer', role: 'viewer' };
+      state.token = null;
+      sessionStorage.setItem('hsos_mode', 'viewer');
+      onLoginSuccess();
+      // แสดง toast แจ้งว่าไม่มีสิทธิ์แก้ไข
+      setTimeout(() => toast('คุณเข้าใช้งานในฐานะ Viewer เท่านั้น\nหากต้องการสิทธิ์แก้ไข ติดต่อ Admin', 'info', 4000), 800);
+    }
+    return true;
+  } catch (e) {
+    console.warn('LIFF init error:', e);
+    return false; // fallback → flow ปกติ
+  }
+}
 
 // ── Auth ─────────────────────────────────────────────────────
 function showLoginForm() {

@@ -23,7 +23,7 @@ export const router = {
       return ok({ user: { role: 'viewer' }, data: await getCalendar(month, db) });
     }
     if (action === 'public_settings') {
-      return ok({ data: await getPublicSettings(db) });
+      return ok({ data: await getPublicSettings(db, env) });
     }
     if (action === 'supervisors') {
       return ok({ data: await getSupervisors(db) });
@@ -273,10 +273,12 @@ async function getSetting(key, db) {
   const { rows } = await db.execute({ sql:`SELECT value FROM settings WHERE key=?`, args:[key] });
   return rows[0]?.value || '';
 }
-async function getPublicSettings(db) {
+async function getPublicSettings(db, env) {
   const keys = ['pdf_manual_url', 'calendar_public_view'];
   const result = [];
   for (const key of keys) result.push({ key, value: await getSetting(key, db) });
+  const liffId = typeof env?.LIFF_ID === 'string' ? env.LIFF_ID.trim() : '';
+  result.push({ key: 'liff_id', value: liffId });
   return result;
 }
 async function getCalendar(month, db) {

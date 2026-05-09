@@ -7,6 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 # ใส่ค่าจริงใน wrangler secret put หรือ Cloudflare Dashboard
 # อย่า commit ค่าจริงลง git!
 
+# LIFF_ID ตั้งที่ Cloudflare Dashboard → Workers → เลือก Worker → Settings → Variables
+# หรือ (local) สร้างไฟล์ .dev.vars บรรทัดเดียว: LIFF_ID=xxxx-xxxx
+# ไม่ใส่ใน wrangler.toml เพื่อกันค่าว่างทับค่าจริงตอน deploy
+
 # wrangler secret put LINE_CHANNEL_TOKEN
 # wrangler secret put LINE_CHANNEL_SECRET
 # wrangler secret put TURSO_URL
