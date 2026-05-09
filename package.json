@@ -1,0 +1,17 @@
+{
+  "name": "hsos-worker",
+  "version": "1.0.0",
+  "description": "HSOS LINE Bot — Cloudflare Worker + Turso",
+  "main": "src/index.js",
+  "scripts": {
+    "dev":    "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "turso db shell hsos-db < schema.sql"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
