@@ -3,14 +3,16 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-[vars]
-# LIFF_ID ต้องอยู่ที่นี่ (หรือใช้ `wrangler secret put LIFF_ID` แทน) — ถ้าใส่แค่ใน Dashboard แล้ว deploy ด้วย Wrangler ค่าอาจถูกลบเพราะ Wrangler ซิงค์ vars จากไฟล์นี้
-LIFF_ID = "2010025082-VjWsMv0Y"
-
-# wrangler secret put LINE_CHANNEL_TOKEN
-# wrangler secret put LINE_CHANNEL_SECRET
-# wrangler secret put TURSO_URL
-# wrangler secret put TURSO_TOKEN
-# wrangler secret put JWT_SECRET
+# ตัวแปรจาก wrangler.toml [vars]: อย่าวาง LIFF_ID ที่นี่ — ใช้ secret แล้ว deploy ถึงจะไม่ทับ Dashboard
+#
+# Secrets (รันที่เครื่องครั้งหนึ่ง หรือเมื่อเปลี่ยนค่า):
+#   npx wrangler secret put LIFF_ID
+#   npx wrangler secret put LINE_CHANNEL_TOKEN
+#   npx wrangler secret put LINE_CHANNEL_SECRET
+#   npx wrangler secret put TURSO_URL
+#   npx wrangler secret put TURSO_TOKEN
+#   npx wrangler secret put JWT_SECRET
+#
+# Local dev: เก็บ LIFF_ID ใน .dev.vars (Wrangler โหลดให้อัตโนมัติ)
 
 ## หมายเหตุ: ถ้าต้องการผูกโดเมนจริงค่อยเพิ่ม [[routes]] ภายหลัง
