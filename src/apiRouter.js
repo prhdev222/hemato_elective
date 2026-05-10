@@ -323,11 +323,35 @@ async function getChiefResidents(db) {
 }
 async function saveChiefResident(data, db) {
   const id = data.id || `CR${Date.now()}`;
+  const newName = data.name;
+  const newLine = data.line_id || '';
+  const newRole = data.role || 'Resident 3';
+  // ── Read existing row (if any) to know the OLD name — needed to find matching chiefs rows
+  let oldName = '';
+  if (data.id) {
+    const { rows } = await db.execute({
+      sql: `SELECT name FROM chief_residents WHERE id=?`,
+      args: [data.id],
+    });
+    oldName = rows[0]?.name || '';
+  }
   await db.execute({
     sql: `INSERT INTO chief_residents(id,name,role,line_id,active) VALUES(?,?,?,?,1)
           ON CONFLICT(id) DO UPDATE SET name=excluded.name, role=excluded.role, line_id=excluded.line_id`,
-    args: [id, data.name, data.role || 'Resident 3', data.line_id || ''],
+    args: [id, newName, newRole, newLine],
   });
+  // ── Sync chiefs table: rows referencing old name (or new name if unchanged) get updated
+  if (oldName && oldName !== newName) {
+    await db.execute({
+      sql: `UPDATE chiefs SET chief_name=?, chief_line_id=? WHERE chief_name=?`,
+      args: [newName, newLine, oldName],
+    });
+  } else {
+    await db.execute({
+      sql: `UPDATE chiefs SET chief_line_id=? WHERE chief_name=?`,
+      args: [newLine, newName],
+    });
+  }
   return { success: true, id };
 }
 async function deleteChiefResident(id, db) {
