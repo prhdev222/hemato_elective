@@ -250,11 +250,13 @@ async function runElectivePreview(searchParams, db) {
   const eMatch = findDoctorByName(qIn, electives, threshold);
   if (!eMatch?.doctor) {
     const first = words[0] || qIn;
+    const like = `%${first}%`;
     const { rows: suggestions } = await db.execute({
       sql: `SELECT id, name, level, date_range FROM electives
-            WHERE (status IS NULL OR status != 'deleted') AND name LIKE ?
+            WHERE (status IS NULL OR status != 'deleted')
+              AND (name LIKE ? OR ifnull(name_en,'') LIKE ?)
             ORDER BY name LIMIT 10`,
-      args: [`%${first}%`],
+      args: [like, like],
     });
     return ok({ elective_preview: { match: false, suggestions: suggestions || [] } });
   }
@@ -263,7 +265,12 @@ async function runElectivePreview(searchParams, db) {
     elective_preview: {
       match: true, text,
       similarity: eMatch.similarity,
-      elective: { id: eMatch.doctor.id, name: eMatch.doctor.name, level: eMatch.doctor.level },
+      elective: {
+        id: eMatch.doctor.id,
+        name: eMatch.doctor.name,
+        name_en: eMatch.doctor.name_en || '',
+        level: eMatch.doctor.level,
+      },
     },
   });
 }
@@ -283,7 +290,7 @@ async function getPublicSettings(db, env) {
 }
 async function getCalendar(month, db) {
   const { rows } = await db.execute({
-    sql: `SELECT oc.*, s.name as supervisor_name
+    sql: `SELECT oc.*, s.name as supervisor_name, ifnull(s.name_en,'') as supervisor_name_en
           FROM opd_calendar oc
           LEFT JOIN supervisors s ON s.id = oc.supervisor_id
           WHERE strftime('%Y-%m', oc.date) = ? ORDER BY oc.date`,
@@ -335,10 +342,12 @@ async function saveChiefResident(data, db) {
     });
     oldName = rows[0]?.name || '';
   }
+  const newNameEn = data.name_en != null ? String(data.name_en) : '';
   await db.execute({
-    sql: `INSERT INTO chief_residents(id,name,role,line_id,active) VALUES(?,?,?,?,1)
-          ON CONFLICT(id) DO UPDATE SET name=excluded.name, role=excluded.role, line_id=excluded.line_id`,
-    args: [id, newName, newRole, newLine],
+    sql: `INSERT INTO chief_residents(id,name,role,line_id,name_en,active) VALUES(?,?,?,?,?,1)
+          ON CONFLICT(id) DO UPDATE SET
+          name=excluded.name, role=excluded.role, line_id=excluded.line_id, name_en=excluded.name_en`,
+    args: [id, newName, newRole, newLine, newNameEn],
   });
   // ── Sync chiefs table: rows referencing old name (or new name if unchanged) get updated
   if (oldName && oldName !== newName) {
@@ -393,17 +402,19 @@ async function saveElective(data, db) {
     if (rows[0]?.id) id = rows[0].id;
   }
   if (!id) id = `E${Date.now()}`;
+  const nameEn = data.name_en != null ? String(data.name_en) : '';
   await db.execute({
-    sql: `INSERT INTO electives(id,name,from_hospital,level,date_range,ward,status,date_range2,ward2)
-          VALUES(?,?,?,?,?,?,?,?,?)
+    sql: `INSERT INTO electives(id,name,from_hospital,level,date_range,ward,status,date_range2,ward2,name_en)
+          VALUES(?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET
           name=excluded.name, from_hospital=excluded.from_hospital,
           level=excluded.level, date_range=excluded.date_range,
           ward=excluded.ward, status=excluded.status,
-          date_range2=excluded.date_range2, ward2=excluded.ward2`,
+          date_range2=excluded.date_range2, ward2=excluded.ward2,
+          name_en=excluded.name_en`,
     args: [id, data.name, data.from_hospital||'', data.level||'',
            data.date_range||'', data.ward||'', data.status||'upcoming',
-           data.date_range2||'', data.ward2||''],
+           data.date_range2||'', data.ward2||'', nameEn],
   });
   return { success: true, id };
 }
@@ -418,10 +429,12 @@ async function hardDeleteElective(id, db) {
 }
 async function saveSupervisor(data, db) {
   const id = data.id || `S${Date.now()}`;
+  const supNameEn = data.name_en != null ? String(data.name_en) : '';
   await db.execute({
-    sql: `INSERT INTO supervisors(id,name,active) VALUES(?,?,?)
-          ON CONFLICT(id) DO UPDATE SET name=excluded.name, active=excluded.active`,
-    args: [id, data.name, data.active !== false ? 1 : 0],
+    sql: `INSERT INTO supervisors(id,name,active,name_en) VALUES(?,?,?,?)
+          ON CONFLICT(id) DO UPDATE SET
+          name=excluded.name, active=excluded.active, name_en=excluded.name_en`,
+    args: [id, data.name, data.active !== false ? 1 : 0, supNameEn],
   });
   return { success: true, id };
 }

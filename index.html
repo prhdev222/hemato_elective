@@ -482,6 +482,8 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
           <input type="text" id="el-from" placeholder="ต้นสังกัด"></div>
       </div>
       <input type="hidden" id="el-name">
+      <div class="field"><label>🌐 ชื่อภาษาอังกฤษ <span style="font-weight:400;color:var(--gray4)">(ถ้ามี)</span></label>
+        <input type="text" id="el-name-en" placeholder="e.g. John Smith" style="width:100%"></div>
       <div class="field"><label>📊 ระดับ</label>
         <select id="el-level">
           <option value="">— เลือก —</option>
@@ -554,8 +556,9 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <div class="tab-panel active" id="tab-sup">
         <p style="font-size:12px;color:var(--gray4);margin-bottom:10px">รายชื่อที่เพิ่มจะปรากฏใน dropdown OPD</p>
         <div id="sup-list" style="margin-bottom:12px"></div>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="new-sup-name" placeholder="ชื่ออาจารย์" style="flex:1">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="new-sup-name" placeholder="ชื่ออาจารย์ (ไทย)" style="flex:1;min-width:160px">
+          <input type="text" id="new-sup-name-en" placeholder="ชื่อ EN (ถ้ามี)" style="flex:1;min-width:140px">
           <button class="btn btn-primary btn-sm" onclick="addSupervisor()">+ เพิ่ม</button>
         </div>
       </div>
@@ -570,7 +573,8 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
         <p style="font-size:12px;color:var(--gray4);margin-bottom:10px">ใช้เลือก Chief Resident สำหรับวอร์ด</p>
         <div id="res-list" style="margin-bottom:12px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" id="new-res-name" placeholder="ชื่อ Resident/Fellow" style="flex:1;min-width:180px">
+          <input type="text" id="new-res-name" placeholder="ชื่อ Resident/Fellow (ไทย)" style="flex:1;min-width:180px">
+          <input type="text" id="new-res-name-en" placeholder="ชื่อ EN (ถ้ามี)" style="flex:1;min-width:140px">
           <input type="text" id="new-res-line" placeholder="LINE ID เช่น @chief หรือ https://line.me/..." style="flex:1;min-width:220px">
           <select id="new-res-type" style="width:130px">
             <option value="Resident 3">Resident 3</option>
@@ -2475,7 +2479,7 @@ async function deleteOPD() {
 // ── Elective Modal ───────────────────────────────────────────
 function openAddElective() {
   document.getElementById('el-id').value = '';
-  ['el-first','el-last','el-name','el-from','el-ward1','el-ward2'].forEach(id => document.getElementById(id).value = '');
+  ['el-first','el-last','el-name','el-name-en','el-from','el-ward1','el-ward2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('el-level').value = '';
   ['el-start1','el-end1','el-start2','el-end2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('el-ward1').value = 'วอร์ดชาย';
@@ -2496,6 +2500,7 @@ function openEditElective(id) {
   document.getElementById('el-first').value = parsed.first;
   document.getElementById('el-last').value  = parsed.last;
   document.getElementById('el-name').value  = e.name || '';
+  document.getElementById('el-name-en').value = e.name_en || '';
   document.getElementById('el-from').value = e.from_hospital || '';
   document.getElementById('el-level').value = e.level || '';
   const r1 = parseRangeToInputs(e.date_range);
@@ -2539,6 +2544,7 @@ async function saveElective() {
     date_range2:  (val('el-start2') && val('el-end2')) ? `${val('el-start2')} ถึง ${val('el-end2')}` : '',
     ward2:        document.getElementById('el-ward2').value,
     status:       'upcoming',
+    name_en:      val('el-name-en'),
   };
   try {
     const res = await api({ action:'save_elective', data }, true);
@@ -2672,7 +2678,7 @@ function loadManageData() {
   const supList = document.getElementById('sup-list');
   supList.innerHTML = state.supervisors.map(s =>
     `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
-      <span style="flex:1;font-size:13px">${s.name}</span>
+      <span style="flex:1;font-size:13px">${escapeHtml(s.name)}${s.name_en ? ` <span style="color:var(--gray4);font-size:11px">(${escapeHtml(s.name_en)})</span>` : ''}</span>
       <button class="btn-icon btn-sm" onclick="editSupervisor('${s.id}')">✏️</button>
       <button class="btn-icon btn-sm" onclick="deleteSupervisor('${s.id}')">🗑️</button>
     </div>`
@@ -2682,7 +2688,7 @@ function loadManageData() {
   const elcList = document.getElementById('elc-list');
   elcList.innerHTML = state.electives.map(e =>
     `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
-      <span style="flex:1;font-size:13px">${e.name} <span style="color:var(--gray4);font-size:11px">${e.level||''}</span></span>
+      <span style="flex:1;font-size:13px">${escapeHtml(e.name)}${e.name_en ? ` <span style="color:var(--gray4);font-size:11px">(${escapeHtml(e.name_en)})</span>` : ''} <span style="color:var(--gray4);font-size:11px">${escapeHtml(e.level || '')}</span></span>
       <button class="btn-icon btn-sm" onclick="openEditElective('${e.id}')">✏️</button>
     </div>`
   ).join('') || '<p class="empty-state">ไม่มีข้อมูล</p>';
@@ -2695,8 +2701,8 @@ function renderResidentList() {
   const list = document.getElementById('res-list');
   list.innerHTML = state.residents.map(r =>
     `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
-      <span style="flex:1;font-size:13px">${r.name} <span class="badge badge-teal">${r.role||''}</span><br>
-        <span style="font-size:11px;color:var(--gray4)">LINE ID: ${r.line_id || '—'}</span>
+      <span style="flex:1;font-size:13px">${escapeHtml(r.name)}${r.name_en ? ` <span style="color:var(--gray4);font-size:11px">(${escapeHtml(r.name_en)})</span>` : ''} <span class="badge badge-teal">${escapeHtml(r.role||'')}</span><br>
+        <span style="font-size:11px;color:var(--gray4)">LINE ID: ${escapeHtml(r.line_id || '—')}</span>
       </span>
       <button class="btn-icon btn-sm" onclick="editResident('${r.id}')">✏️</button>
       <button class="btn-icon btn-sm" onclick="deleteResident('${r.id}')">🗑️</button>
@@ -2707,10 +2713,12 @@ function renderResidentList() {
 async function addSupervisor() {
   const name = val('new-sup-name');
   if (!name) return;
+  const name_en = val('new-sup-name-en');
   try {
-    const res = await api({ action:'save_supervisor', data:{ name, active:true }}, true);
+    const res = await api({ action:'save_supervisor', data:{ name, name_en, active:true }}, true);
     if (!res.success) throw new Error(res.error);
     document.getElementById('new-sup-name').value = '';
+    document.getElementById('new-sup-name-en').value = '';
     await reloadSupervisors();
     loadManageData();
     toast('เพิ่มอาจารย์แล้ว ✓','success');
@@ -2733,9 +2741,13 @@ async function editSupervisor(id) {
   const newName = prompt('แก้ไขชื่ออาจารย์:', sup.name);
   if (newName === null) return;
   const trimmed = newName.trim();
-  if (!trimmed || trimmed === sup.name) return;
+  if (!trimmed) return;
+  let name_en = sup.name_en || '';
+  const enPrompt = prompt('ชื่อภาษาอังกฤษ (ถ้ามี, เว้นว่างได้):', sup.name_en || '');
+  if (enPrompt !== null) name_en = enPrompt.trim();
+  if (trimmed === sup.name && name_en === (sup.name_en || '')) return;
   try {
-    const res = await api({ action:'save_supervisor', data:{ id, name: trimmed, active: true }}, true);
+    const res = await api({ action:'save_supervisor', data:{ id, name: trimmed, name_en, active: true }}, true);
     if (!res.success) throw new Error(res.error);
     await reloadSupervisors();
     loadManageData();
@@ -2745,16 +2757,18 @@ async function editSupervisor(id) {
 
 async function addResident() {
   const name = val('new-res-name');
+  const name_en = val('new-res-name-en');
   const lineId = val('new-res-line');
   const role = document.getElementById('new-res-type').value;
   if (!name) { toast('กรุณากรอกชื่อ','error'); return; }
   try {
     const res = await api({
       action: 'save_chief_resident',
-      data: { name, role, line_id: lineId }
+      data: { name, name_en, role, line_id: lineId }
     }, true);
     if (!res.success) throw new Error(res.error);
     document.getElementById('new-res-name').value = '';
+    document.getElementById('new-res-name-en').value = '';
     document.getElementById('new-res-line').value = '';
     const crRes = await apiGet('action=chief_residents');
     state.residents = crRes.data || [];
@@ -2786,6 +2800,9 @@ function editResident(id) {
         <label style="font-size:12px;color:var(--gray4,#666)">ชื่อ
           <input type="text" id="er-name" style="width:100%;padding:8px;margin-top:4px;border:1px solid #ddd;border-radius:6px">
         </label>
+        <label style="font-size:12px;color:var(--gray4,#666)">ชื่อภาษาอังกฤษ (ถ้ามี)
+          <input type="text" id="er-name-en" style="width:100%;padding:8px;margin-top:4px;border:1px solid #ddd;border-radius:6px" placeholder="Optional">
+        </label>
         <label style="font-size:12px;color:var(--gray4,#666)">LINE ID
           <input type="text" id="er-line" style="width:100%;padding:8px;margin-top:4px;border:1px solid #ddd;border-radius:6px" placeholder="@chief หรือ https://line.me/...">
         </label>
@@ -2804,6 +2821,7 @@ function editResident(id) {
   document.body.appendChild(overlay);
   const $ = (id) => overlay.querySelector('#' + id);
   $('er-name').value = r.name || '';
+  $('er-name-en').value = r.name_en || '';
   $('er-line').value = r.line_id || '';
   $('er-role').value = ['Resident 3','Fellow'].includes(r.role) ? r.role : 'Resident 3';
   const close = () => overlay.remove();
@@ -2811,16 +2829,17 @@ function editResident(id) {
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   $('er-save').onclick = async () => {
     const name = $('er-name').value.trim() || r.name;
+    const name_en = $('er-name-en').value.trim();
     const line_id = $('er-line').value.trim();
     const role = $('er-role').value;
     try {
       const res = await api({
         action: 'save_chief_resident',
-        data: { id, name, role, line_id }
+        data: { id, name, name_en, role, line_id }
       }, true);
       if (!res.success) throw new Error(res.error);
       const idx = state.residents.findIndex(x => x.id === id);
-      if (idx >= 0) state.residents[idx] = { ...state.residents[idx], name, role, line_id };
+      if (idx >= 0) state.residents[idx] = { ...state.residents[idx], name, name_en, role, line_id };
       renderResidentList();
       close();
       toast('แก้ไขแล้ว ✓','success');
@@ -3086,9 +3105,13 @@ async function runElectiveSearchNow() {
 // ── Search by supervisor name ─────────────────────────────────────────────
 function searchBySupervisorName(q) {
   const trimmed = q.trim();
-  const matches = state.supervisors.filter(s =>
-    s.name && s.name.includes(trimmed)
-  );
+  const low = trimmed.toLowerCase();
+  const matches = state.supervisors.filter(s => {
+    const n = s.name || '';
+    const en = s.name_en || '';
+    return n.includes(trimmed) || en.includes(trimmed)
+      || n.toLowerCase().includes(low) || en.toLowerCase().includes(low);
+  });
   if (!matches.length) return null;
 
   const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -3228,7 +3251,7 @@ async function _doSearchAsync(q) {
           txt += '   🏥 OPD schedule:\n';
           opds.forEach(o => {
             const d = new Date(o.date);
-            const sup = o.opd_mode === 'solo' ? 'self' : (o.supervisor_name || o.name_en || '—');
+            const sup = o.opd_mode === 'solo' ? 'self' : (o.supervisor_name_en || o.supervisor_name || '—');
             txt += `      ${daysEN[d.getDay()]} ${fmtEN(d)} — ${sup}
 `;
           });

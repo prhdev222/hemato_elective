@@ -46,7 +46,26 @@ function similarity(a, b) {
   return max === 0 ? 100 : Math.round(((max - dist) / max) * 10000) / 100;
 }
 
-// เทียบเท่า findDoctorByName() ใน FuzzyMatch.gs
+/** ให้คะแนนจากชื่อที่ normalize แล้ว (0 = ไม่เข้าข่ายพอจะเลือกเป็น best) */
+function scoreAgainstNormalizedNames(normInput, normName) {
+  if (!normName) return 0;
+
+  if (normInput === normName) return 100;
+  if (normInput.replace(/\s/g,'') === normName.replace(/\s/g,'')) return 100;
+
+  const inputNoSpace = normInput.replace(/\s/g, '');
+  const nameNoSpace = normName.replace(/\s/g, '');
+  if (
+    inputNoSpace.length >= 2 &&
+    (nameNoSpace.includes(inputNoSpace) || inputNoSpace.includes(nameNoSpace))
+  ) {
+    return inputNoSpace === nameNoSpace ? 100 : 95;
+  }
+
+  return similarity(normInput, normName);
+}
+
+// เทียบเท่า findDoctorByName() ใน FuzzyMatch.gs — รองรับทั้ง name และ name_en (bilingual elective)
 export function findDoctorByName(input, doctors, threshold = 90) {
   // อนุญาตให้ค้นหาสั้นลง (เช่น ชื่อเล่น 2 ตัวอักษร) แต่ยังกันคำสั้นเกินไป
   if (!input?.trim() || input.trim().length < 2) return null;
@@ -54,36 +73,26 @@ export function findDoctorByName(input, doctors, threshold = 90) {
   const normInput = normalizeName(input);
   if (normInput.length < 2) return null;
 
-  let best = null, bestScore = 0;
+  let best = null;
+  let bestScore = 0;
 
   for (const doc of doctors) {
-    const normName = normalizeName(doc.name);
-    if (!normName) continue;
+    const variants = [];
+    if (doc.name != null && String(doc.name).trim()) variants.push(doc.name);
+    if (doc.name_en != null && String(doc.name_en).trim()) variants.push(doc.name_en);
+    let docBest = 0;
 
-    // Exact match → คืนทันที
-    if (normInput === normName) return { doctor: doc, similarity: 100 };
-
-    // No-space match
-    if (normInput.replace(/\s/g,'') === normName.replace(/\s/g,'')) {
-      return { doctor: doc, similarity: 100 };
+    for (const raw of variants) {
+      const normName = normalizeName(raw);
+      const score = scoreAgainstNormalizedNames(normInput, normName);
+      if (score === 100) return { doctor: doc, similarity: 100 };
+      if (score > docBest) docBest = score;
     }
 
-    // Partial match: รองรับการพิมพ์เฉพาะชื่อหน้า/ชื่อเล่น
-    // เช่น input "ใจเย็น" match กับ "ใจเย็น ใจดี"
-    const inputNoSpace = normInput.replace(/\s/g, '');
-    const nameNoSpace = normName.replace(/\s/g, '');
-    if (
-      inputNoSpace.length >= 2 &&
-      (nameNoSpace.includes(inputNoSpace) || inputNoSpace.includes(nameNoSpace))
-    ) {
-      const score = inputNoSpace === nameNoSpace ? 100 : 95;
-      if (score > bestScore) { bestScore = score; best = doc; }
-      continue;
+    if (docBest > bestScore) {
+      bestScore = docBest;
+      best = doc;
     }
-
-    // Levenshtein
-    const score = similarity(normInput, normName);
-    if (score > bestScore) { bestScore = score; best = doc; }
   }
 
   return bestScore >= threshold ? { doctor: best, similarity: bestScore } : null;
