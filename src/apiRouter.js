@@ -186,7 +186,9 @@ export const router = {
         return ok(await changePin(user.id, data.old_pin, data.new_pin, db));
       case 'save_templates':
         if (!can(user,'admin')) return fail('Admin only');
-        return ok(await saveTemplates(data.templates, data.pdf_manual_url, db));
+        return ok(
+          await saveTemplates(data.templates, data.pdf_manual_url, data.elective_calendar_url, db)
+        );
       case 'save_holiday':
         if (!can(user,'editor')) return fail('Permission denied');
         return ok(await saveHoliday(data.data, user.name, db));
@@ -235,7 +237,11 @@ async function runElectivePreview(searchParams, db) {
     searchParams.get('month') || searchParams.get('chief_month') || currentMonth();
   const words = qIn.split(/\s+/).filter(Boolean);
   if (qIn.length < 2) return ok({ elective_preview: { hint: 'short' } });
-  if (words.length < 2) {
+  const latinOneWordOk =
+    /^[A-Za-z]/.test(qIn) &&
+    !/[ก-๙]/.test(qIn) &&
+    qIn.replace(/\s+/g, '').length >= 4;
+  if (words.length < 2 && !latinOneWordOk) {
     return ok({
       elective_preview: {
         hint: 'need_full_name',
@@ -260,7 +266,7 @@ async function runElectivePreview(searchParams, db) {
     });
     return ok({ elective_preview: { match: false, suggestions: suggestions || [] } });
   }
-  const text = await buildElectiveReplyMessage(eMatch.doctor, db, chiefMonth);
+  const text = await buildElectiveReplyMessage(eMatch.doctor, db, chiefMonth, qIn);
   return ok({
     elective_preview: {
       match: true, text,
@@ -281,7 +287,7 @@ async function getSetting(key, db) {
   return rows[0]?.value || '';
 }
 async function getPublicSettings(db, env) {
-  const keys = ['pdf_manual_url', 'calendar_public_view'];
+  const keys = ['pdf_manual_url', 'elective_calendar_url', 'calendar_public_view'];
   const result = [];
   for (const key of keys) result.push({ key, value: await getSetting(key, db) });
   const liffId = typeof env?.LIFF_ID === 'string' ? env.LIFF_ID.trim() : '';
@@ -508,7 +514,7 @@ async function getSettings(db) {
   const { rows } = await db.execute(`SELECT key, value FROM settings ORDER BY key`);
   return rows;
 }
-async function saveTemplates(templates, pdfUrl, db) {
+async function saveTemplates(templates, pdfUrl, electiveCalendarUrl, db) {
   if (templates && Array.isArray(templates)) {
     for (const t of templates) {
       await db.execute({
@@ -521,6 +527,12 @@ async function saveTemplates(templates, pdfUrl, db) {
     await db.execute({
       sql: `INSERT INTO settings(key, value) VALUES('pdf_manual_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
       args: [pdfUrl || ''],
+    });
+  }
+  if (electiveCalendarUrl !== undefined) {
+    await db.execute({
+      sql: `INSERT INTO settings(key, value) VALUES('elective_calendar_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+      args: [electiveCalendarUrl || ''],
     });
   }
   return { success: true };

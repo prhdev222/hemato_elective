@@ -44,28 +44,34 @@ export async function handleLineEvent(event, db, env) {
 
   const threshold = parseInt((await getSetting('fuzzy_threshold', db)) || '90', 10) || 90;
 
-  // ── wordCount < 2 → hint หรือ silent ────────────────────────────────────
+  // ── wordCount < 2 → hint หรือ silent (ยกเว้นชื่อ Latin คำเดียวที่ยาวพอ เช่นนามสกุลฝรั่ง) ──
   if (wordCount < 2) {
-    const hint = 'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
+    const latinOneWordOk =
+      /^[A-Za-z]/.test(text) &&
+      !/[ก-๙]/.test(text) &&
+      text.replace(/\s+/g, '').length >= 4;
+    if (!latinOneWordOk) {
+      const hint = 'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
 
-    if (sourceType === 'user' && isSingleThaiWord(text)) {
-      await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
-      return;
-    }
-    if (isSingleThaiWord(text)) {
-      const q = String(text || '').trim();
-      const { rows } = await db.execute({
-        sql: `SELECT 1 FROM electives
-              WHERE (status IS NULL OR status != 'deleted')
-              AND name LIKE ? LIMIT 1`,
-        args: [`%${q}%`],
-      });
-      if (rows?.length) {
+      if (sourceType === 'user' && isSingleThaiWord(text)) {
         await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
         return;
       }
+      if (isSingleThaiWord(text)) {
+        const q = String(text || '').trim();
+        const { rows } = await db.execute({
+          sql: `SELECT 1 FROM electives
+                WHERE (status IS NULL OR status != 'deleted')
+                AND name LIKE ? LIMIT 1`,
+          args: [`%${q}%`],
+        });
+        if (rows?.length) {
+          await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
+          return;
+        }
+      }
+      return;
     }
-    return;
   }
 
   // ── match doctors ────────────────────────────────────────────────────────
@@ -106,7 +112,7 @@ export async function handleLineEvent(event, db, env) {
   }
 
   const elective = eMatch.doctor;
-  const message = await buildElectiveReplyMessage(elective, db);
+  const message = await buildElectiveReplyMessage(elective, db, null, text);
   const ok = await replyMessage(replyToken, message, env.LINE_CHANNEL_TOKEN);
   if (ok) {
     await db.execute({
