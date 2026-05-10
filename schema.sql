@@ -169,3 +169,26 @@ CREATE TABLE IF NOT EXISTS elective_stats (
   archived_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_elective_stats_month ON elective_stats(month);
+
+
+-- ============================================================
+-- HSOS: เพิ่ม name_en column สำหรับ Bilingual Support
+-- รัน: turso db shell hsos-db < add_name_en.sql
+-- หรือวาง SQL นี้ใน Turso Shell โดยตรง
+-- ============================================================
+
+-- 1. electives: ชื่อแพทย์ elective (อาจเป็นชาวต่างชาติ)
+ALTER TABLE electives ADD COLUMN name_en TEXT DEFAULT '';
+
+-- 2. supervisors: ชื่ออาจารย์ที่ออก OPD
+ALTER TABLE supervisors ADD COLUMN name_en TEXT DEFAULT '';
+
+-- 3. chief_residents: Chief / Fellow
+ALTER TABLE chief_residents ADD COLUMN name_en TEXT DEFAULT '';
+
+-- ============================================================
+-- ตรวจสอบหลัง ALTER
+-- ============================================================
+-- SELECT id, name, name_en FROM electives        LIMIT 5;
+-- SELECT id, name, name_en FROM supervisors       LIMIT 5;
+-- SELECT id, name, name_en FROM chief_residents   LIMIT 5;

@@ -155,6 +155,10 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 .elc-filter-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--gray2);background:#fff;font-size:12px;font-weight:600;color:var(--gray4);cursor:pointer;font-family:inherit;transition:all .15s}
 .elc-filter-btn:hover{border-color:var(--navy);color:var(--navy)}
 .elc-filter-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.lang-toggle{display:flex;border:1.5px solid var(--gray2);border-radius:20px;overflow:hidden}
+.lang-btn{padding:4px 11px;font-size:12px;font-weight:700;border:none;background:transparent;cursor:pointer;font-family:inherit;color:var(--gray4);transition:all .15s;white-space:nowrap;line-height:1.4}
+.lang-btn.active{background:var(--navy);color:#fff}
+.lang-btn:not(.active):hover{background:var(--gray1)}
 .elective-card-header{padding:12px 16px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
 .elective-card-header h3{font-size:14px;font-weight:700;color:var(--navy)}
 table.elective-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -612,8 +616,8 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <div id="ward-schedule-list" style="padding:14px 16px"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-ward-schedule')">ปิด</button>
-      <button class="btn btn-outline btn-sm" onclick="printWardSchedule()">🖨️ พิมพ์</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-ward-schedule')" data-i18n="btn_close">ปิด</button>
+      <button class="btn btn-outline btn-sm" onclick="printWardSchedule()" data-i18n="btn_print">🖨️ พิมพ์</button>
       <button class="btn btn-success btn-sm" onclick="downloadWardScheduleCSV()">⬇️ CSV</button>
     </div>
   </div>
@@ -711,6 +715,10 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   </div>
   <button class="btn btn-outline btn-sm" onclick="downloadPDF()" title="พิมพ์ / บันทึกเป็น PDF">🖨️ PRINT</button>
   <button class="btn btn-outline btn-sm" onclick="saveCalendarImage()" title="บันทึก Calendar เป็นรูปภาพ PNG">📷 บันทึกรูป</button>
+  <div class="lang-toggle" title="Switch language / สลับภาษา">
+    <button class="lang-btn active" id="lang-btn-th" onclick="setLang('th')">🇹🇭 TH</button>
+    <button class="lang-btn" id="lang-btn-en" onclick="setLang('en')">🇬🇧 EN</button>
+  </div>
   <a id="btn-manual" href="#" target="_blank" class="btn btn-outline btn-sm">📘 คู่มือ</a>
   <a id="btn-manual-web" href="https://prhdev222.github.io/elective-activity/" target="_blank" rel="noopener" class="btn btn-outline btn-sm" title="คู่มือแบบเว็บ">🌐 คู่มือ (WEB)</a>
   <div class="font-controls" aria-label="ปรับขนาดตัวอักษร">
@@ -728,11 +736,11 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 <div id="main">
 
   <!-- Search (form = กด Enter ส่งเหมือนปุ่มค้นหา รองรับ IME ไทยได้ดีกว่าแค่ keydown เดียว) -->
-  <div id="search-hint">ค้นหาได้ 3 แบบ: (1) ชื่อ-นามสกุล Elective → ดูตาราง  (2) ชื่ออาจารย์ → ดูว่าออก OPD วันไหน  (3) วันที่ เช่น 13-05-2026 → ดูว่าวันนั้นใครออก OPD</div>
+  <div id="search-hint" data-i18n="search_hint">ค้นหาได้ 3 แบบ: (1) ชื่อ-นามสกุล Elective → ดูตาราง  (2) ชื่ออาจารย์ → ดูว่าออก OPD วันไหน  (3) วันที่ เช่น 13-05-2026 → ดูว่าวันนั้นใครออก OPD</div>
   <form id="search-bar" role="search" autocomplete="off" onsubmit="event.preventDefault(); runElectiveSearchNow();">
     <span style="font-size:16px">🔎</span>
     <input type="text" name="q" id="search-input" enterkeyhint="search" autocomplete="off"
-           placeholder="ค้นหาชื่อ Elective / ชื่ออาจารย์ / วันที่ เช่น 13-05-2026…" oninput="doSearchDebounced(this.value)">
+           placeholder="ค้นหาชื่อ Elective / ชื่ออาจารย์ / วันที่ เช่น 13-05-2026…" data-i18n-ph="search_ph" oninput="doSearchDebounced(this.value)">
     <button type="submit" class="btn btn-primary btn-sm" id="btn-search-submit" title="ค้นหา">ค้นหา ↵</button>
     <button type="button" class="btn-icon" onclick="clearSearch()" title="ล้าง">×</button>
   </form>
@@ -749,24 +757,24 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <h3>♂ วอร์ดชาย <span style="font-size:11px;font-weight:400;color:var(--navy2);margin-left:4px">👆 คลิกดูตาราง</span>
         <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-male" style="display:none" onclick="event.stopPropagation();openChiefModal('male')">✏️ แก้ไข</button>
       </h3>
-      <p><strong>Chief:</strong> <span id="chief-male-name">—</span></p>
-      <p><strong>Supervise:</strong> <span id="chief-male-sup">—</span></p>
+      <p><strong data-i18n="chief_label">Chief:</strong> <span id="chief-male-name">—</span></p>
+      <p><strong data-i18n="sup_label">Supervise:</strong> <span id="chief-male-sup">—</span></p>
     </div>
     <div class="chief-card chief-card-female" onclick="openWardSchedule('female')" title="คลิกดูตาราง Elective วอร์ดหญิง">
       <h3>♀ วอร์ดหญิง <span style="font-size:11px;font-weight:400;color:#c0527a;margin-left:4px">👆 คลิกดูตาราง</span>
         <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-female" style="display:none" onclick="event.stopPropagation();openChiefModal('female')">✏️ แก้ไข</button>
       </h3>
-      <p><strong>Chief:</strong> <span id="chief-female-name">—</span></p>
-      <p><strong>Supervise:</strong> <span id="chief-female-sup">—</span></p>
+      <p><strong data-i18n="chief_label">Chief:</strong> <span id="chief-female-name">—</span></p>
+      <p><strong data-i18n="sup_label">Supervise:</strong> <span id="chief-female-sup">—</span></p>
     </div>
   </div>
 
   <!-- Calendar -->
   <div class="calendar-card">
-    <div class="section-hint">ด้านบน = Chief/Supervise ตามวอร์ด · ปฏิทินด้านล่าง = OPD รายวัน · <strong>คลิกวันที่เพื่อกรอก/แก้ไข OPD</strong></div>
+    <div class="section-hint"><span data-i18n="cal_hint">ด้านบน = Chief/Supervise ตามวอร์ด · ปฏิทินด้านล่าง = OPD รายวัน · </span><strong data-i18n="cal_hint_click">คลิกวันที่เพื่อกรอก/แก้ไข OPD</strong></div>
     <div class="cal-grid" id="cal-head">
-      <div class="cal-head">จันทร์</div>
-      <div class="cal-head">อังคาร</div>
+      <div class="cal-head" data-i18n="day_mon">จันทร์</div>
+      <div class="cal-head" data-i18n="day_tue">อังคาร</div>
       <div class="cal-head">พุธ</div>
       <div class="cal-head">พฤหัส</div>
       <div class="cal-head">ศุกร์</div>
@@ -779,29 +787,29 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   <!-- Elective table -->
   <div class="elective-card">
     <div class="elective-card-header">
-      <h3>📋 แพทย์ Elective — <span id="elective-month-label"></span></h3>
+      <h3><span data-i18n="elec_title">📋 แพทย์ Elective</span> — <span id="elective-month-label"></span></h3>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span id="completed-count" style="font-size:11px;color:var(--gray3)"></span>
-        <button class="btn btn-outline btn-sm" onclick="printElectiveTable()" title="พิมพ์ตาราง Elective">🖨️ พิมพ์</button>
-        <button class="btn btn-success btn-sm" onclick="downloadElectiveTableCSV()" title="ดาวน์โหลด CSV">⬇️ CSV</button>
+        <button class="btn btn-outline btn-sm" onclick="printElectiveTable()" data-i18n="btn_print">🖨️ พิมพ์</button>
+        <button class="btn btn-success btn-sm" onclick="downloadElectiveTableCSV()" data-i18n="btn_csv">⬇️ CSV</button>
         <button class="btn btn-primary btn-sm" id="btn-add-elective" style="display:none" onclick="openAddElective()">+ เพิ่มแพทย์ Elective</button>
       </div>
     </div>
     <!-- Filter bar -->
     <div id="elective-filter-bar" style="padding:10px 16px;border-bottom:1px solid var(--gray2);display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--gray1)">
-      <span style="font-size:12px;font-weight:700;color:var(--gray4)">กรอง:</span>
+      <span style="font-size:12px;font-weight:700;color:var(--gray4)" data-i18n="filter_label">กรอง:</span>
       <div style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="elc-filter-btn active" data-filter="active" onclick="setElectiveFilter('active')">🔄 กำลังดูงาน</button>
-        <button class="elc-filter-btn" data-filter="waiting" onclick="setElectiveFilter('waiting')">⏳ รอเริ่ม</button>
-        <button class="elc-filter-btn" data-filter="done" onclick="setElectiveFilter('done')">✅ จบแล้ว</button>
-        <button class="elc-filter-btn" data-filter="all" onclick="setElectiveFilter('all')">📋 ทั้งหมด</button>
+        <button class="elc-filter-btn active" data-filter="active" onclick="setElectiveFilter('active')" data-i18n="f_active">🔄 กำลังดูงาน</button>
+        <button class="elc-filter-btn" data-filter="waiting" onclick="setElectiveFilter('waiting')" data-i18n="f_waiting">⏳ รอเริ่ม</button>
+        <button class="elc-filter-btn" data-filter="done" onclick="setElectiveFilter('done')" data-i18n="f_done">✅ จบแล้ว</button>
+        <button class="elc-filter-btn" data-filter="all" onclick="setElectiveFilter('all')" data-i18n="f_all">📋 ทั้งหมด</button>
       </div>
       <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--gray4)">ช่วงเวลา:</span>
+        <span style="font-size:12px;color:var(--gray4)" data-i18n="date_range">ช่วงเวลา:</span>
         <input type="date" id="elc-filter-start" onchange="renderElectiveTable()" style="padding:4px 8px;font-size:12px;border:1px solid var(--gray2);border-radius:6px;font-family:inherit">
-        <span style="font-size:12px;color:var(--gray4)">ถึง</span>
+        <span style="font-size:12px;color:var(--gray4)" data-i18n="date_to">ถึง</span>
         <input type="date" id="elc-filter-end" onchange="renderElectiveTable()" style="padding:4px 8px;font-size:12px;border:1px solid var(--gray2);border-radius:6px;font-family:inherit">
-        <button class="btn btn-outline btn-sm" onclick="clearElectiveFilter()" style="font-size:11px">✕ ล้าง</button>
+        <button class="btn btn-outline btn-sm" onclick="clearElectiveFilter()" style="font-size:11px" data-i18n="btn_clear">✕ ล้าง</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -1059,6 +1067,132 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
      JAVASCRIPT
 ════════════════════════════════════════════ -->
 <script>
+// BUILD: 1778420087
+// ══════════════════════════════════════════════════════════
+// BILINGUAL SYSTEM  (TH default, EN toggle)
+// ══════════════════════════════════════════════════════════
+let _lang = localStorage.getItem('hsos_lang') || 'th';
+
+const _i18n = {
+  th: {
+    cal_hint:       'ด้านบน = Chief/Supervise ตามวอร์ด · ปฏิทินด้านล่าง = OPD รายวัน · ',
+    cal_hint_click: 'คลิกวันที่เพื่อกรอก/แก้ไข OPD',
+    search_hint:    'ค้นหาได้ 3 แบบ: (1) ชื่อ-นามสกุล Elective → ดูตาราง  (2) ชื่ออาจารย์ → ดูว่าออก OPD วันไหน  (3) วันที่ เช่น 13-05-2026 → ดูว่าวันนั้นใครออก OPD',
+    search_ph:      'ค้นหาชื่อ Elective / ชื่ออาจารย์ / วันที่ เช่น 13-05-2026…',
+    filter_label:   'กรอง:',
+    f_active:       '🔄 กำลังดูงาน',
+    f_waiting:      '⏳ รอเริ่ม',
+    f_done:         '✅ จบแล้ว',
+    f_all:          '📋 ทั้งหมด',
+    date_range:     'ช่วงเวลา:',
+    date_to:        'ถึง',
+    btn_clear:      '✕ ล้าง',
+    btn_print:      '🖨️ พิมพ์',
+    btn_csv:        '⬇️ CSV',
+    btn_close:      'ปิด',
+    elec_title:     '📋 แพทย์ Elective',
+    chief_label:    'Chief:',
+    sup_label:      'Supervise:',
+    day_mon:        'จันทร์',
+    day_tue:        'อังคาร',
+    day_wed:        'พุธ',
+    day_thu:        'พฤหัส',
+    day_fri:        'ศุกร์',
+    day_sat:        'เสาร์',
+    day_sun:        'อาทิตย์',
+    status_active:  'กำลังดูงาน',
+    status_waiting: 'รอเริ่ม',
+    status_done:    'จบแล้ว',
+    opd_none:       'ยังไม่มีตาราง OPD',
+    ward_click:     '👆 คลิกดูตาราง',
+    elec_none:      'ไม่มีแพทย์ Elective round วอร์ดนี้เดือนนี้',
+    filter_empty:   'ไม่มีรายการที่ตรงกับ filter ที่เลือก',
+    no_elective:    'ไม่มีแพทย์ Elective เดือนนี้',
+    round_count:    (n, w) => `${n} คน round ${w} ในเดือนนี้`,
+    days_left:      (n) => `เหลือ ${n} วัน`,
+    opd_with:       (n) => `แพทย์ Elective ที่ออก OPD ด้วย (${n} คน):`,
+  },
+  en: {
+    cal_hint:       'Top = Chief/Supervise by ward · Calendar below = Daily OPD · ',
+    cal_hint_click: 'Click date to add/edit OPD',
+    search_hint:    'Search 3 ways: (1) Elective name → schedule  (2) Supervisor name → OPD dates  (3) Date e.g. 13-05-2026 → who works that day',
+    search_ph:      'Search Elective / Supervisor name / Date (DD-MM-YYYY)…',
+    filter_label:   'Filter:',
+    f_active:       '🔄 In rotation',
+    f_waiting:      '⏳ Upcoming',
+    f_done:         '✅ Completed',
+    f_all:          '📋 All',
+    date_range:     'Date range:',
+    date_to:        'to',
+    btn_clear:      '✕ Clear',
+    btn_print:      '🖨️ Print',
+    btn_csv:        '⬇️ CSV',
+    btn_close:      'Close',
+    elec_title:     '📋 Elective Physicians',
+    chief_label:    'Chief:',
+    sup_label:      'Supervise:',
+    day_mon:        'Mon',
+    day_tue:        'Tue',
+    day_wed:        'Wed',
+    day_thu:        'Thu',
+    day_fri:        'Fri',
+    day_sat:        'Sat',
+    day_sun:        'Sun',
+    status_active:  'In rotation',
+    status_waiting: 'Upcoming',
+    status_done:    'Completed',
+    opd_none:       'No OPD scheduled',
+    ward_click:     '👆 View schedule',
+    elec_none:      'No elective physicians rotating this ward this month',
+    filter_empty:   'No results match the selected filter',
+    no_elective:    'No elective physicians this month',
+    round_count:    (n, w) => `${n} physician${n>1?'s':''} rotating ${w} this month`,
+    days_left:      (n) => `${n} day${n>1?'s':''} left`,
+    opd_with:       (n) => `Elective physicians joining OPD (${n}):`,
+  }
+};
+
+function t(key) {
+  if (typeof _i18n === 'undefined') return key;
+  return (_i18n[_lang] || _i18n.th)[key] || (_i18n.th)[key] || key;
+}
+
+function applyLang() {
+  // อัปเดต [data-i18n] elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if (typeof val === 'string') el.textContent = val;
+  });
+  // อัปเดต placeholder
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    el.placeholder = t(key);
+  });
+  // อัปเดต calendar day headers (cal-head ที่ไม่มี data-i18n)
+  const dayKeys = ['day_sun','day_mon','day_tue','day_wed','day_thu','day_fri','day_sat'];
+  document.querySelectorAll('.cal-head').forEach((el, i) => {
+    if (i < dayKeys.length) el.textContent = t(dayKeys[i]);
+  });
+  // อัปเดต active lang button
+  document.getElementById('lang-btn-th')?.classList.toggle('active', _lang === 'th');
+  document.getElementById('lang-btn-en')?.classList.toggle('active', _lang === 'en');
+  // re-render เฉพาะส่วนที่มี label สถานะ (elective table + filter count)
+  if (typeof renderElectiveTable === 'function') renderElectiveTable();
+}
+
+function setLang(lang) {
+  _lang = lang;
+  localStorage.setItem('hsos_lang', lang);
+  applyLang();
+}
+
+// เรียกหลัง DOM load
+document.addEventListener('DOMContentLoaded', () => {
+  applyLang();
+});
+
+
 // ── CONFIG ──────────────────────────────────────────────────
 /** เก็บใน DB: เลิกนับเป็นวันนั้นเป็นวันหยุด (เปิดให้มี OPD ได้ แม้เดิมเป็นวันหยุดราชการ) */
 const HOLIDAY_OP_OVERRIDE = '__opd_override__';
@@ -1331,6 +1465,7 @@ function renderAll() {
   renderChiefs();
   renderCalendar();
   renderElectiveTable();
+  applyLang();
 }
 
 function renderMonthLabel() {
@@ -1377,13 +1512,13 @@ function openWardSchedule(wardCode) {
   const chiefName = chief.chief_name || '—';
   const supList   = chief.supervise_list || '—';
   document.getElementById('ward-schedule-summary').innerHTML =
-    `<strong>👑 Chief:</strong> ${chiefName} &nbsp;|&nbsp; <strong>👨‍⚕️ Supervise โดย:</strong> ${supList}` +
-    `<br><span style="color:var(--navy);font-weight:700">${electives.length} คน</span> round ${wardLabel} ในเดือนนี้`;
+    `<strong>👑 ${t("chief_label")}</strong> ${chiefName} &nbsp;|&nbsp; <strong>👨‍⚕️ ${_lang==="en"?"Supervised by:":"Supervise โดย:"}</strong> ${supList}` +
+    `<br><span style="color:var(--navy);font-weight:700">${electives.length}</span> ` + (_i18n[_lang]?.round_count || _i18n.th.round_count)(electives.length, wardLabel);
 
   // build list
   const listEl = document.getElementById('ward-schedule-list');
   if (!electives.length) {
-    listEl.innerHTML = '<p class="empty-state">ไม่มีแพทย์ Elective round วอร์ดนี้เดือนนี้</p>';
+    listEl.innerHTML = `<p class="empty-state">${t('elec_none')}</p>`;
     openModal('modal-ward-schedule');
     return;
   }
@@ -1795,9 +1930,9 @@ function _elecStatusText(e) {
   const allStarts = [r1?.start, r2?.start].filter(Boolean);
   const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds))   : null;
   const firstStart = allStarts.length ? new Date(Math.min(...allStarts)) : null;
-  if (lastEnd && today > lastEnd)         return 'จบแล้ว';
-  if (firstStart && today >= firstStart)  return 'กำลังดูงาน';
-  return 'รอเริ่ม';
+  if (lastEnd && today > lastEnd)         return t('status_done');
+  if (firstStart && today >= firstStart)  return t('status_active');
+  return t('status_waiting');
 }
 
 function printElectiveTable() {
@@ -1999,16 +2134,18 @@ function renderElectiveTable() {
   // อัปเดต count label
   const countEl = document.getElementById('completed-count');
   if (countEl) {
-    const filterLabels = { active:'กำลังดูงาน', waiting:'รอเริ่ม', done:'จบแล้ว', all:'ทั้งหมด' };
-    countEl.textContent = `(${filterLabels[_electiveFilter] || ''}: ${filteredByRange.length} คน / รวม ${allInMonth.length} คน)`;
+    const filterLabels = { active: t('f_active'), waiting: t('f_waiting'), done: t('f_done'), all: t('f_all') };
+    const unitWord = _lang === 'en' ? 'physician' + (filteredByRange.length !== 1 ? 's' : '') : 'คน';
+    const totalUnit = _lang === 'en' ? 'total' : 'รวม';
+    countEl.textContent = `(${filterLabels[_electiveFilter] || ''}: ${filteredByRange.length} ${unitWord} / ${totalUnit} ${allInMonth.length})`;
   }
 
   if (!allInMonth.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">ไม่มีแพทย์ Elective เดือนนี้</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${t('no_elective')}</td></tr>`;
     return;
   }
   if (!filteredByRange.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">ไม่มีรายการที่ตรงกับ filter ที่เลือก</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${t('filter_empty')}</td></tr>`;
     return;
   }
 
@@ -3060,6 +3197,47 @@ async function _doSearchAsync(q) {
   if (supResult) {
     showElectiveSearchResult(supResult, null);
     return;
+  }
+
+  // ── search elective ด้วย name_en (English input) ──────────────────────
+  const isEnInput = /^[A-Za-z]/.test(trimmed);
+  if (isEnInput) {
+    const enMatches = state.electives.filter(e =>
+      (e.name_en || '').toLowerCase().includes(trimmed.toLowerCase())
+    );
+    if (enMatches.length) {
+      const monthsTH = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const daysEN   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      function fmtEN(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+      const lines = enMatches.map(e => {
+        const r1 = parseRange(e.date_range  || '');
+        const r2 = parseRange(e.date_range2 || '');
+        const displayName = e.name_en || e.name;
+        let txt = `👤 ${displayName}
+   Level: ${e.level || '—'} · From: ${e.from_hospital || '—'}
+`;
+        if (r1) txt += `   📅 ${e.ward  || ''}: ${fmtEN(r1.start)} – ${fmtEN(r1.end)}
+`;
+        if (r2) txt += `   📅 ${e.ward2 || ''}: ${fmtEN(r2.start)} – ${fmtEN(r2.end)}
+`;
+        // OPD
+        const opds = state.calendar.filter(o => {
+          try { return JSON.parse(o.elective_ids || '[]').includes(e.id); } catch(_) { return false; }
+        });
+        if (opds.length) {
+          txt += '   🏥 OPD schedule:\n';
+          opds.forEach(o => {
+            const d = new Date(o.date);
+            const sup = o.opd_mode === 'solo' ? 'self' : (o.supervisor_name || o.name_en || '—');
+            txt += `      ${daysEN[d.getDay()]} ${fmtEN(d)} — ${sup}
+`;
+          });
+        }
+        return txt;
+      }).join('\n');
+      showElectiveSearchResult(lines, enMatches.length === 1 ? enMatches[0].id : null);
+      return;
+    }
   }
 
   try {
