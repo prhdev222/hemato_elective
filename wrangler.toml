@@ -3,6 +3,15 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# ── Cron Triggers: รันลบ log เก่าอัตโนมัติ ───────────────────────
+# ปัจจุบัน: ทุกวันที่ 1 ของเดือน 03:00 UTC (= 10:00 น. ตามเวลาไทย)
+[triggers]
+crons = ["0 3 1 * *"]
+
+# ── ปรับจำนวนวันที่จะเก็บ log ผ่าน vars (default: 30 วัน) ────────
+[vars]
+LOG_KEEP_DAYS = "30"
+
 # ตัวแปรจาก wrangler.toml [vars]: อย่าวาง LIFF_ID ที่นี่ — ใช้ secret แล้ว deploy ถึงจะไม่ทับ Dashboard
 #
 # Secrets (รันที่เครื่องครั้งหนึ่ง หรือเมื่อเปลี่ยนค่า):

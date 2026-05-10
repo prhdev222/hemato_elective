@@ -121,7 +121,35 @@ export default {
       console.error('Worker error:', err);
       return json({ success: false, error: err.message }, cors, 500);
     }
-  }
+  },
+
+  // ── Cron handler: รันตามตารางใน wrangler.toml [triggers] ──────
+  async scheduled(event, env, ctx) {
+    if (!env.TURSO_URL || !env.TURSO_TOKEN) {
+      console.error('cron skipped: TURSO_URL/TURSO_TOKEN missing');
+      return;
+    }
+    const db = createClient({ url: env.TURSO_URL, authToken: env.TURSO_TOKEN });
+    const keepDays = parseInt(env.LOG_KEEP_DAYS || '7', 10);
+    try {
+      // ลบ log เก่ากว่า keepDays วัน
+      const result = await db.execute({
+        sql: `DELETE FROM logs WHERE ts < datetime('now', ?)`,
+        args: [`-${keepDays} days`],
+      });
+      // นับจำนวน log ที่เหลือ เพื่อบันทึกลง log เอง
+      const { rows } = await db.execute(`SELECT COUNT(*) as n FROM logs`);
+      const remaining = rows[0]?.n || 0;
+      await log(db, 'INFO', 'cron_log_cleanup',
+        `deleted logs older than ${keepDays} days; remaining=${remaining}`,
+        { cron: event.cron, keepDays, remaining });
+    } catch (err) {
+      console.error('cron cleanup failed:', err);
+      try {
+        await log(db, 'ERROR', 'cron_log_cleanup_failed', err.message, { cron: event.cron });
+      } catch { /* ignore */ }
+    }
+  },
 };
 
 function json(data, headers = {}, status = 200) {
