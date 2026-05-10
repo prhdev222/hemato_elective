@@ -73,6 +73,16 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 #user-label{font-size:12px;opacity:.8}
 #btn-logout{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit}
 #btn-logout:hover{background:rgba(255,255,255,.25)}
+#btn-menu-toggle{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;line-height:1;padding:0;flex-shrink:0}
+#btn-menu-toggle:hover{background:rgba(255,255,255,.25)}
+#btn-menu-floating{display:none;position:fixed;top:8px;right:8px;width:38px;height:38px;border-radius:50%;background:var(--navy);color:#fff;border:none;font-size:18px;line-height:1;cursor:pointer;z-index:300;box-shadow:0 2px 8px rgba(0,0,0,.25);align-items:center;justify-content:center}
+#btn-menu-floating:hover{background:#244a85}
+
+/* ── Footer ── */
+#app-footer{margin-top:32px;padding:18px 12px;text-align:center;font-size:13px;color:var(--gray4);border-top:1px solid var(--gray2);background:#fafbfc}
+#app-footer a{color:var(--navy);text-decoration:none}
+#app-footer a:hover{text-decoration:underline}
+#app-footer .footer-line{margin:2px 0}
 
 /* ── Toolbar ── */
 #toolbar{background:#fff;border-bottom:1px solid var(--gray2);padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:56px;z-index:199}
@@ -292,6 +302,14 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   table.elective-table td{padding:10px 6px}
   .badge{font-size:12px}
   .empty-state{font-size:15px;padding:24px 12px}
+
+  /* Mobile menu toggle: visible only on mobile */
+  #btn-menu-toggle{display:inline-flex;align-items:center;justify-content:center}
+  /* When menu is hidden: hide BOTH header and toolbar entirely */
+  body.menu-hidden #app-header{display:none}
+  body.menu-hidden #toolbar{display:none}
+  /* Floating toggle button stays visible at top-right when everything is hidden */
+  body.menu-hidden #btn-menu-floating{display:flex}
 }
 </style>
 <!-- LIFF SDK -->
@@ -637,7 +655,11 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   <h1>HSOS Calendar <small>Hematology Smart Onboarding System (Siriraj Hematology)</small></h1>
   <span id="user-label"></span>
   <button id="btn-logout" onclick="logout()" style="display:none">ออกจากระบบ</button>
+  <button id="btn-menu-toggle" onclick="toggleMenuBar()" title="ซ่อน/แสดงเมนู" aria-label="toggle menu">☰</button>
 </header>
+
+<!-- Floating toggle: shown only when header is hidden on mobile -->
+<button id="btn-menu-floating" onclick="toggleMenuBar()" title="แสดงเมนู" aria-label="show menu">☰</button>
 
 <!-- Logo Zoom -->
 <div class="overlay" id="modal-logo" onclick="closeLogoModal()">
@@ -2165,6 +2187,27 @@ function switchTab(tabId) {
   document.getElementById(tabId).classList.add('active');
   event.target.classList.add('active');
 }
+
+// ── Mobile menu bar toggle ─────────────────────────────────────
+function toggleMenuBar() {
+  const hidden = document.body.classList.toggle('menu-hidden');
+  const btn = document.getElementById('btn-menu-toggle');
+  if (btn) btn.textContent = hidden ? '☰' : '✕';
+  try { sessionStorage.setItem('hsos_menu_hidden', hidden ? '1' : '0'); } catch(e) {}
+}
+
+// Restore menu state on load (mobile only — but harmless on desktop since CSS hides toolbar only on small screens)
+(function restoreMenuState() {
+  try {
+    if (sessionStorage.getItem('hsos_menu_hidden') === '1') {
+      document.body.classList.add('menu-hidden');
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('btn-menu-toggle');
+        if (btn) btn.textContent = '☰';
+      });
+    }
+  } catch(e) {}
+})();
 
 // ── Users ─────────────────────────────────────────────────────
 async function loadUsers() {
@@ -3726,5 +3769,11 @@ function switchLineBotTab(tabId) {
 }
 
 </script>
+
+<footer id="app-footer">
+  <div class="footer-line">Built with ❤️ for Siriraj Hematology</div>
+  <div class="footer-line">© 2026 Directed by <a href="mailto:uradev222@gmail.com">Uradev</a></div>
+</footer>
+
 </body>
 </html>
