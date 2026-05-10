@@ -111,7 +111,8 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 /* ── Chief cards ── */
 .chief-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
 @media(max-width:600px){.chief-row{grid-template-columns:1fr}}
-.chief-card{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.chief-card{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .15s,transform .12s}
+.chief-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .chief-card.chief-card-male{background:var(--navy3);border-color:#B8CDE8}
 .chief-card.chief-card-female{background:#FFF0F6;border-color:#EDC4D9}
 .chief-card h3{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px}
@@ -151,6 +152,9 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 
 /* ── Elective table ── */
 .elective-card{background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.elc-filter-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--gray2);background:#fff;font-size:12px;font-weight:600;color:var(--gray4);cursor:pointer;font-family:inherit;transition:all .15s}
+.elc-filter-btn:hover{border-color:var(--navy);color:var(--navy)}
+.elc-filter-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .elective-card-header{padding:12px 16px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
 .elective-card-header h3{font-size:14px;font-weight:700;color:var(--navy)}
 table.elective-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -296,6 +300,8 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   .cal-add-btn{width:26px;height:26px;font-size:16px}
 
   .elective-card-header{padding:12px;gap:8px;flex-wrap:wrap}
+  #elective-filter-bar{padding:8px 12px;gap:6px}
+  .elc-filter-btn{font-size:11px;padding:4px 10px}
   .elective-card-header h3{font-size:16px}
   table.elective-table{font-size:14px}
   table.elective-table th{font-size:12px;padding:8px 6px}
@@ -314,6 +320,7 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 </style>
 <!-- LIFF SDK -->
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -591,6 +598,27 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   </div>
 </div>
 
+<!-- Ward Schedule Modal -->
+<div class="overlay" id="modal-ward-schedule">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="ward-schedule-title">📋 ตาราง Elective ประจำวอร์ด</h2>
+      <button class="close-btn" onclick="closeModal('modal-ward-schedule')">×</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <!-- summary bar -->
+      <div id="ward-schedule-summary" style="padding:12px 16px;background:var(--gray1);border-bottom:1px solid var(--gray2);font-size:13px;color:var(--gray4)"></div>
+      <!-- timeline list -->
+      <div id="ward-schedule-list" style="padding:14px 16px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-ward-schedule')">ปิด</button>
+      <button class="btn btn-outline btn-sm" onclick="printWardSchedule()">🖨️ พิมพ์</button>
+      <button class="btn btn-success btn-sm" onclick="downloadWardScheduleCSV()">⬇️ CSV</button>
+    </div>
+  </div>
+</div>
+
 <!-- Edit Chief -->
 <div class="overlay" id="modal-chief">
   <div class="modal">
@@ -682,6 +710,7 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
     <input id="backend-url" type="text" />
   </div>
   <button class="btn btn-outline btn-sm" onclick="downloadPDF()" title="พิมพ์ / บันทึกเป็น PDF">🖨️ PRINT</button>
+  <button class="btn btn-outline btn-sm" onclick="saveCalendarImage()" title="บันทึก Calendar เป็นรูปภาพ PNG">📷 บันทึกรูป</button>
   <a id="btn-manual" href="#" target="_blank" class="btn btn-outline btn-sm">📘 คู่มือ</a>
   <a id="btn-manual-web" href="https://prhdev222.github.io/elective-activity/" target="_blank" rel="noopener" class="btn btn-outline btn-sm" title="คู่มือแบบเว็บ">🌐 คู่มือ (WEB)</a>
   <div class="font-controls" aria-label="ปรับขนาดตัวอักษร">
@@ -699,11 +728,11 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 <div id="main">
 
   <!-- Search (form = กด Enter ส่งเหมือนปุ่มค้นหา รองรับ IME ไทยได้ดีกว่าแค่ keydown เดียว) -->
-  <div id="search-hint">พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วกดค้นหาหรือ Enter เพื่อดูสิ่งที่ต้องทำ/กิจกรรมต่อไป</div>
+  <div id="search-hint">ค้นหาได้ 3 แบบ: (1) ชื่อ-นามสกุล Elective → ดูตาราง  (2) ชื่ออาจารย์ → ดูว่าออก OPD วันไหน  (3) วันที่ เช่น 13-05-2026 → ดูว่าวันนั้นใครออก OPD</div>
   <form id="search-bar" role="search" autocomplete="off" onsubmit="event.preventDefault(); runElectiveSearchNow();">
     <span style="font-size:16px">🔎</span>
     <input type="text" name="q" id="search-input" enterkeyhint="search" autocomplete="off"
-           placeholder="พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วกดค้นหาหรือ Enter… เพื่อดูสิ่งที่ต้องทำ/กิจกรรมต่อไป" oninput="doSearchDebounced(this.value)">
+           placeholder="ค้นหาชื่อ Elective / ชื่ออาจารย์ / วันที่ เช่น 13-05-2026…" oninput="doSearchDebounced(this.value)">
     <button type="submit" class="btn btn-primary btn-sm" id="btn-search-submit" title="ค้นหา">ค้นหา ↵</button>
     <button type="button" class="btn-icon" onclick="clearSearch()" title="ล้าง">×</button>
   </form>
@@ -716,16 +745,16 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 
   <!-- Chief cards -->
   <div class="chief-row">
-    <div class="chief-card chief-card-male">
-      <h3>♂ วอร์ดชาย
-        <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-male" style="display:none" onclick="openChiefModal('male')">✏️ แก้ไข</button>
+    <div class="chief-card chief-card-male" onclick="openWardSchedule('male')" title="คลิกดูตาราง Elective วอร์ดชาย">
+      <h3>♂ วอร์ดชาย <span style="font-size:11px;font-weight:400;color:var(--navy2);margin-left:4px">👆 คลิกดูตาราง</span>
+        <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-male" style="display:none" onclick="event.stopPropagation();openChiefModal('male')">✏️ แก้ไข</button>
       </h3>
       <p><strong>Chief:</strong> <span id="chief-male-name">—</span></p>
       <p><strong>Supervise:</strong> <span id="chief-male-sup">—</span></p>
     </div>
-    <div class="chief-card chief-card-female">
-      <h3>♀ วอร์ดหญิง
-        <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-female" style="display:none" onclick="openChiefModal('female')">✏️ แก้ไข</button>
+    <div class="chief-card chief-card-female" onclick="openWardSchedule('female')" title="คลิกดูตาราง Elective วอร์ดหญิง">
+      <h3>♀ วอร์ดหญิง <span style="font-size:11px;font-weight:400;color:#c0527a;margin-left:4px">👆 คลิกดูตาราง</span>
+        <button class="btn btn-outline btn-sm chief-edit-btn" id="btn-edit-chief-female" style="display:none" onclick="event.stopPropagation();openChiefModal('female')">✏️ แก้ไข</button>
       </h3>
       <p><strong>Chief:</strong> <span id="chief-female-name">—</span></p>
       <p><strong>Supervise:</strong> <span id="chief-female-sup">—</span></p>
@@ -751,10 +780,28 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   <div class="elective-card">
     <div class="elective-card-header">
       <h3>📋 แพทย์ Elective — <span id="elective-month-label"></span></h3>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn btn-outline btn-sm" id="btn-toggle-completed" onclick="toggleCompletedElectives()" style="font-size:11px">👁️ แสดงที่จบแล้ว</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span id="completed-count" style="font-size:11px;color:var(--gray3)"></span>
+        <button class="btn btn-outline btn-sm" onclick="printElectiveTable()" title="พิมพ์ตาราง Elective">🖨️ พิมพ์</button>
+        <button class="btn btn-success btn-sm" onclick="downloadElectiveTableCSV()" title="ดาวน์โหลด CSV">⬇️ CSV</button>
         <button class="btn btn-primary btn-sm" id="btn-add-elective" style="display:none" onclick="openAddElective()">+ เพิ่มแพทย์ Elective</button>
+      </div>
+    </div>
+    <!-- Filter bar -->
+    <div id="elective-filter-bar" style="padding:10px 16px;border-bottom:1px solid var(--gray2);display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--gray1)">
+      <span style="font-size:12px;font-weight:700;color:var(--gray4)">กรอง:</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="elc-filter-btn active" data-filter="active" onclick="setElectiveFilter('active')">🔄 กำลังดูงาน</button>
+        <button class="elc-filter-btn" data-filter="waiting" onclick="setElectiveFilter('waiting')">⏳ รอเริ่ม</button>
+        <button class="elc-filter-btn" data-filter="done" onclick="setElectiveFilter('done')">✅ จบแล้ว</button>
+        <button class="elc-filter-btn" data-filter="all" onclick="setElectiveFilter('all')">📋 ทั้งหมด</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--gray4)">ช่วงเวลา:</span>
+        <input type="date" id="elc-filter-start" onchange="renderElectiveTable()" style="padding:4px 8px;font-size:12px;border:1px solid var(--gray2);border-radius:6px;font-family:inherit">
+        <span style="font-size:12px;color:var(--gray4)">ถึง</span>
+        <input type="date" id="elc-filter-end" onchange="renderElectiveTable()" style="padding:4px 8px;font-size:12px;border:1px solid var(--gray2);border-radius:6px;font-family:inherit">
+        <button class="btn btn-outline btn-sm" onclick="clearElectiveFilter()" style="font-size:11px">✕ ล้าง</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -1295,6 +1342,230 @@ function renderMonthLabel() {
   setText('elective-month-label', `${monthsFull[m]} ${buddistYear}`);
 }
 
+function openWardSchedule(wardCode) {
+  const wardLabel = wardCode === 'male' ? 'วอร์ดชาย' : 'วอร์ดหญิง';
+  const wardKeyword = wardCode === 'male' ? 'วอร์ดชาย' : 'วอร์ดหญิง';
+  const chief = state.chiefs[wardCode] || {};
+  const [y, m] = state.month.split('-').map(Number);
+  const mStart = new Date(y, m - 1, 1);
+  const mEnd   = new Date(y, m, 0);
+  const today  = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+  function fmtD(d) {
+    return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`;
+  }
+
+  // กรอง elective ที่ round วอร์ดนี้ในช่วงเดือน
+  const electives = (state.electives || []).filter(e => {
+    const w1 = (e.ward  || '').includes(wardKeyword);
+    const w2 = (e.ward2 || '').includes(wardKeyword);
+    if (!w1 && !w2) return false;
+    const r1 = w1 ? parseRange(e.date_range  || '') : null;
+    const r2 = w2 ? parseRange(e.date_range2 || '') : null;
+    const hit1 = r1 && r1.start <= mEnd && r1.end >= mStart;
+    const hit2 = r2 && r2.start <= mEnd && r2.end >= mStart;
+    return hit1 || hit2;
+  });
+
+  // title
+  setText('ward-schedule-title', `📋 ตาราง Elective — ${wardLabel} เดือนนี้`);
+
+  // summary
+  const chiefName = chief.chief_name || '—';
+  const supList   = chief.supervise_list || '—';
+  document.getElementById('ward-schedule-summary').innerHTML =
+    `<strong>👑 Chief:</strong> ${chiefName} &nbsp;|&nbsp; <strong>👨‍⚕️ Supervise โดย:</strong> ${supList}` +
+    `<br><span style="color:var(--navy);font-weight:700">${electives.length} คน</span> round ${wardLabel} ในเดือนนี้`;
+
+  // build list
+  const listEl = document.getElementById('ward-schedule-list');
+  if (!electives.length) {
+    listEl.innerHTML = '<p class="empty-state">ไม่มีแพทย์ Elective round วอร์ดนี้เดือนนี้</p>';
+    openModal('modal-ward-schedule');
+    return;
+  }
+
+  // เรียงตามวันเริ่ม
+  const rows = electives.map(e => {
+    const w1Match = (e.ward  || '').includes(wardKeyword);
+    const w2Match = (e.ward2 || '').includes(wardKeyword);
+    // เลือก period ที่ตรง
+    const periods = [];
+    if (w1Match) { const r = parseRange(e.date_range  || ''); if (r) periods.push({ r, ward: e.ward  || '' }); }
+    if (w2Match) { const r = parseRange(e.date_range2 || ''); if (r) periods.push({ r, ward: e.ward2 || '' }); }
+    const firstStart = periods.length ? Math.min(...periods.map(p => p.r.start)) : Infinity;
+    return { e, periods, firstStart };
+  }).sort((a, b) => a.firstStart - b.firstStart);
+
+  listEl.innerHTML = rows.map(({ e, periods }) => {
+    // สถานะ
+    const allEnds   = periods.map(p => p.r.end);
+    const allStarts = periods.map(p => p.r.start);
+    const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds.map(d => d.getTime())))   : null;
+    const firstSt   = allStarts.length ? new Date(Math.min(...allStarts.map(d => d.getTime()))) : null;
+    let statusBadge = '';
+    if (lastEnd && today > lastEnd)         statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46">✅ จบแล้ว</span>';
+    else if (firstSt && today >= firstSt)   statusBadge = '<span class="badge" style="background:#dbeafe;color:#1e40af">🔄 กำลัง round</span>';
+    else                                     statusBadge = '<span class="badge" style="background:var(--gold2);color:var(--gold)">⏳ รอเริ่ม</span>';
+
+    // period tags
+    const periodTags = periods.map(p => {
+      const daysLeft = lastEnd ? Math.ceil((p.r.end - today) / 86400000) : 0;
+      const isPast = today > p.r.end;
+      return `<div style="font-size:12px;margin-top:4px;${isPast ? 'color:var(--gray3)' : 'color:var(--gray5)'}">
+        📅 ${fmtD(p.r.start)} – ${fmtD(p.r.end)}
+        ${!isPast && daysLeft > 0 ? `<span style="color:var(--teal);font-size:11px">(เหลือ ${daysLeft} วัน)</span>` : ''}
+      </div>`;
+    }).join('');
+
+    // OPD ที่มีในเดือนนี้ สำหรับ elective คนนี้
+    const opdRows = (state.calendar || []).filter(o => {
+      try { return JSON.parse(o.elective_ids || '[]').includes(e.id); } catch(_) { return false; }
+    }).sort((a, b) => a.date.localeCompare(b.date));
+
+    const opdTags = opdRows.length ? opdRows.map(o => {
+      const d = new Date(o.date);
+      const past = d < today;
+      const supName = o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—');
+      return `<div style="font-size:11px;${past ? 'color:var(--gray3);text-decoration:line-through' : 'color:var(--teal)'}">
+        ${past ? '✅' : '📋'} ${daysTH[d.getDay()]} ${fmtD(d)} — ${supName}
+      </div>`;
+    }).join('') : '<span style="font-size:11px;color:var(--gray3)">ยังไม่มีตาราง OPD</span>';
+
+    return `<div style="border:1px solid var(--gray2);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="font-weight:700;font-size:14px;color:var(--navy)">${e.name}</div>
+          <div style="font-size:11px;color:var(--gray4)">${e.level || '—'} · ${e.from_hospital || ''}</div>
+          ${periodTags}
+        </div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:11px;font-weight:700;color:var(--gray4);margin-bottom:4px">OPD ที่มีในเดือนนี้</div>
+          ${opdTags}
+        </div>
+        <div>${statusBadge}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // เก็บ state สำหรับ print/csv
+  _lastWardScheduleMeta = { wardLabel };
+  _lastWardScheduleRows = rows.map(({ e, periods }) => {
+    const today2 = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+    const allEnds2   = periods.map(p => p.r.end);
+    const allStarts2 = periods.map(p => p.r.start);
+    const lastEnd2   = allEnds2.length   ? new Date(Math.max(...allEnds2.map(d => d.getTime())))   : null;
+    const firstSt2   = allStarts2.length ? new Date(Math.min(...allStarts2.map(d => d.getTime()))) : null;
+    let statusText = '';
+    if (lastEnd2 && today2 > lastEnd2)        statusText = 'จบแล้ว';
+    else if (firstSt2 && today2 >= firstSt2)  statusText = 'กำลัง round';
+    else                                       statusText = 'รอเริ่ม';
+    const opdRows = (state.calendar || []).filter(o => {
+      try { return JSON.parse(o.elective_ids || '[]').includes(e.id); } catch(_) { return false; }
+    }).sort((a, b) => a.date.localeCompare(b.date));
+    return { e, periods, opdRows, statusText };
+  });
+
+  openModal('modal-ward-schedule');
+}
+
+function _getWardScheduleData() {
+  // คืนค่า { title, chiefName, supList, wardLabel, rows }
+  // rows = array ของ { name, level, hospital, period, opdList }
+  const titleEl = document.getElementById('ward-schedule-title');
+  const summaryEl = document.getElementById('ward-schedule-summary');
+  return {
+    title:   titleEl   ? titleEl.textContent   : 'ตาราง Elective',
+    summary: summaryEl ? summaryEl.textContent : '',
+  };
+}
+
+// เก็บ state ล่าสุดของ ward schedule เพื่อใช้ print/csv
+let _lastWardScheduleRows = [];
+let _lastWardScheduleMeta = {};
+
+function printWardSchedule() {
+  const { title, summary } = _getWardScheduleData();
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+  function fmtOPD(o) {
+    const d = new Date(o.date);
+    return `${daysTH[d.getDay()]} ${fmtD(d)} — ${o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—')}`;
+  }
+
+  const rows = _lastWardScheduleRows;
+  const tableRows = rows.map(({ e, periods, opdRows, statusText }) => {
+    const periodStr = periods.map(p => `${fmtD(p.r.start)} – ${fmtD(p.r.end)}`).join('<br>');
+    const opdStr = opdRows.length ? opdRows.map(fmtOPD).join('<br>') : '—';
+    return `<tr>
+      <td>${e.name}</td>
+      <td>${e.level || '—'}</td>
+      <td>${e.from_hospital || '—'}</td>
+      <td>${periodStr}</td>
+      <td>${opdStr}</td>
+      <td>${statusText}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+      body{font-family:Sarabun,sans-serif;margin:20px;font-size:13px;color:#111}
+      h1{font-size:16px;margin:0 0 4px}
+      p{font-size:12px;color:#555;margin:0 0 12px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #ddd;padding:7px 10px;vertical-align:top;text-align:left}
+      th{background:#1B3A6B;color:#fff;font-size:12px}
+      tr:nth-child(even) td{background:#f5f8ff}
+      @media print{button{display:none}@page{margin:12mm}}
+    </style>
+  </head><body>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(summary)}</p>
+    <table>
+      <thead><tr>
+        <th>ชื่อ</th><th>ระดับ</th><th>สังกัด</th><th>ช่วง Round</th><th>OPD ในเดือนนี้</th><th>สถานะ</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div style="margin-top:10px;text-align:right">
+      <button onclick="window.print()" style="padding:6px 14px;cursor:pointer">🖨️ พิมพ์</button>
+    </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('เปิดหน้าพิมพ์ไม่ได้ (browser block popup)', 'error'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(() => { try { w.focus(); w.print(); } catch(_) {} }, 300);
+}
+
+function downloadWardScheduleCSV() {
+  const { title } = _getWardScheduleData();
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+
+  const rows = _lastWardScheduleRows;
+  const header = ['ชื่อ','ระดับ','สังกัด','ช่วง Round (1)','ช่วง Round (2)','OPD วันที่','OPD อาจารย์','สถานะ'];
+  const dataRows = rows.map(({ e, periods, opdRows, statusText }) => {
+    const p1 = periods[0] ? `${fmtD(periods[0].r.start)} - ${fmtD(periods[0].r.end)}` : '';
+    const p2 = periods[1] ? `${fmtD(periods[1].r.start)} - ${fmtD(periods[1].r.end)}` : '';
+    const opdDates = opdRows.map(o => { const d = new Date(o.date); return `${daysTH[d.getDay()]} ${fmtD(d)}`; }).join(', ');
+    const opdSups  = opdRows.map(o => o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—')).join(', ');
+    return [e.name, e.level || '', e.from_hospital || '', p1, p2, opdDates, opdSups, statusText];
+  });
+
+  const ward = (_lastWardScheduleMeta.wardLabel || 'ward').replace(/\s/g, '_');
+  const month = state.month;
+  downloadTextFile(toCsv([header, ...dataRows]), `elective_${ward}_${month}.csv`, 'text/csv;charset=utf-8');
+  toast('ดาวน์โหลด CSV แล้ว ✓', 'success');
+}
+
 function renderChiefs() {
   const male   = state.chiefs['male']   || {};
   const female = state.chiefs['female'] || {};
@@ -1414,11 +1685,19 @@ function renderCalendar() {
       }
       return set.size;
     })();
+    // สร้าง label ชื่ออาจารย์สำหรับแต่ละรายการ OPD
     const entriesHtml = entries.length
-      ? `<div class="opd-entry" style="cursor:pointer" onclick="event.stopPropagation();openOPDDay('${dateStr}')">
-          <div class="opd-name">🏥 OPD ${entries.length} รายการ</div>
-          <div class="opd-sub">${totalPeople ? `👥 ${totalPeople} คน` : ''}</div>
-        </div>`
+      ? entries.map(e => {
+          const isSolo = e.opd_mode === 'solo';
+          const supLabel = isSolo ? '🩺 ตรวจเอง' : (e.supervisor_name ? `👨‍⚕️ ${e.supervisor_name}` : '👨‍⚕️ (ยังไม่ระบุ)');
+          // นับ elective ในรายการนี้
+          let eCount = 0;
+          try { eCount = JSON.parse(e.elective_ids || '[]').length; } catch(_) {}
+          return `<div class="opd-entry${isSolo ? ' solo' : ''}" style="cursor:pointer" onclick="event.stopPropagation();openOPDDay('${dateStr}')">
+            <div class="opd-name${isSolo ? ' solo' : ''}">${supLabel}</div>
+            ${eCount ? `<div class="opd-sub">👥 ${eCount} คน</div>` : ''}
+          </div>`;
+        }).join('')
       : '';
 
     let cellClass = 'cal-cell';
@@ -1452,12 +1731,192 @@ function getOPDElectiveNames(rawIds) {
 }
 
 let _showCompletedElectives = false;
+let _electiveFilter = 'active'; // 'active' | 'waiting' | 'done' | 'all'
 
 function toggleCompletedElectives() {
   _showCompletedElectives = !_showCompletedElectives;
-  const btn = document.getElementById('btn-toggle-completed');
-  btn.textContent = _showCompletedElectives ? '🙈 ซ่อนที่จบแล้ว' : '👁️ แสดงที่จบแล้ว';
   renderElectiveTable();
+}
+
+function setElectiveFilter(f) {
+  _electiveFilter = f;
+  document.querySelectorAll('.elc-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === f);
+  });
+  renderElectiveTable();
+}
+
+function clearElectiveFilter() {
+  document.getElementById('elc-filter-start').value = '';
+  document.getElementById('elc-filter-end').value = '';
+  renderElectiveTable();
+}
+
+function _getFilteredElectiveRows() {
+  // คืน array ของ elective ที่แสดงอยู่ตอนนี้ (ตาม filter ปัจจุบัน)
+  const [y, m] = state.month.split('-').map(Number);
+  const mStart = new Date(y, m - 1, 1);
+  const mEnd   = new Date(y, m, 0);
+  const today  = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+  const rangeStart = document.getElementById('elc-filter-start')?.value || '';
+  const rangeEnd   = document.getElementById('elc-filter-end')?.value   || '';
+
+  const allInMonth = state.electives.filter(e => {
+    const r1 = parseRange(e.date_range  || '');
+    const r2 = parseRange(e.date_range2 || '');
+    return (r1 && r1.start <= mEnd && r1.end >= mStart) ||
+           (r2 && r2.start <= mEnd && r2.end >= mStart);
+  });
+
+  return allInMonth.filter(e => {
+    const r1 = parseRange(e.date_range  || '');
+    const r2 = parseRange(e.date_range2 || '');
+    const allEnds   = [r1?.end,   r2?.end  ].filter(Boolean);
+    const allStarts = [r1?.start, r2?.start].filter(Boolean);
+    const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds))   : null;
+    const firstStart = allStarts.length ? new Date(Math.min(...allStarts)) : null;
+
+    if (_electiveFilter === 'active')  return firstStart && lastEnd && today >= firstStart && today <= lastEnd;
+    if (_electiveFilter === 'waiting') return firstStart && today < firstStart;
+    if (_electiveFilter === 'done')    return lastEnd && today > lastEnd;
+
+    // all + date range
+    if (rangeStart && lastEnd   && lastEnd   < new Date(rangeStart)) return false;
+    if (rangeEnd   && firstStart && firstStart > new Date(rangeEnd))  return false;
+    return true;
+  });
+}
+
+function _elecStatusText(e) {
+  const today = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+  const r1 = parseRange(e.date_range  || '');
+  const r2 = parseRange(e.date_range2 || '');
+  const allEnds   = [r1?.end,   r2?.end  ].filter(Boolean);
+  const allStarts = [r1?.start, r2?.start].filter(Boolean);
+  const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds))   : null;
+  const firstStart = allStarts.length ? new Date(Math.min(...allStarts)) : null;
+  if (lastEnd && today > lastEnd)         return 'จบแล้ว';
+  if (firstStart && today >= firstStart)  return 'กำลังดูงาน';
+  return 'รอเริ่ม';
+}
+
+function printElectiveTable() {
+  const monthLabel = document.getElementById('elective-month-label')?.textContent || '';
+  const filterLabel = { active:'กำลังดูงาน', waiting:'รอเริ่ม', done:'จบแล้ว', all:'ทั้งหมด' }[_electiveFilter] || '';
+  const title = `แพทย์ Elective — ${monthLabel} (${filterLabel})`;
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+
+  const rows = _getFilteredElectiveRows();
+
+  // index OPD
+  const opdByElective = {};
+  state.calendar.forEach(opd => {
+    try {
+      JSON.parse(opd.elective_ids || '[]').forEach(eid => {
+        if (!opdByElective[eid]) opdByElective[eid] = [];
+        opdByElective[eid].push(opd);
+      });
+    } catch(_) {}
+  });
+
+  const tableRows = rows.map(e => {
+    const r1 = parseRange(e.date_range  || '');
+    const r2 = parseRange(e.date_range2 || '');
+    const ward1Str = r1 ? `${e.ward || ''} (${fmtD(r1.start)}–${fmtD(r1.end)})` : '—';
+    const ward2Str = r2 ? `${e.ward2 || ''} (${fmtD(r2.start)}–${fmtD(r2.end)})` : '';
+    const wardStr  = [ward1Str, ward2Str].filter(Boolean).join('<br>');
+    const opds = (opdByElective[e.id] || []).map(o => {
+      const d = new Date(o.date);
+      const sup = o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—');
+      return `${daysTH[d.getDay()]} ${fmtD(d)} — ${sup}`;
+    }).join('<br>') || '—';
+    return `<tr>
+      <td><strong>${e.name}</strong><br><span style="color:#666;font-size:11px">${e.from_hospital || ''}</span></td>
+      <td>${e.level || '—'}</td>
+      <td>${wardStr}</td>
+      <td>${opds}</td>
+      <td>${_elecStatusText(e)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+      body{font-family:Sarabun,sans-serif;margin:20px;font-size:13px;color:#111}
+      h1{font-size:16px;margin:0 0 12px;color:#1B3A6B}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #ddd;padding:7px 10px;vertical-align:top;text-align:left}
+      th{background:#1B3A6B;color:#fff;font-size:12px;font-weight:700}
+      tr:nth-child(even) td{background:#f5f8ff}
+      @media print{button{display:none}@page{margin:12mm}}
+    </style>
+  </head><body>
+    <h1>${escapeHtml(title)}</h1>
+    <table>
+      <thead><tr>
+        <th>ชื่อ / สังกัด</th><th>ระดับ</th><th>Round Ward</th><th>OPD ที่ได้รับ</th><th>สถานะ</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <p style="font-size:11px;color:#999;margin-top:10px">พิมพ์วันที่: ${new Date().toLocaleDateString('th-TH')}</p>
+    <div style="text-align:right;margin-top:8px">
+      <button onclick="window.print()" style="padding:6px 14px;cursor:pointer">🖨️ พิมพ์</button>
+    </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('เปิดหน้าพิมพ์ไม่ได้ (browser block popup)', 'error'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(() => { try { w.focus(); w.print(); } catch(_) {} }, 300);
+}
+
+function downloadElectiveTableCSV() {
+  const monthLabel = document.getElementById('elective-month-label')?.textContent || state.month;
+  const filterLabel = { active:'กำลังดูงาน', waiting:'รอเริ่ม', done:'จบแล้ว', all:'ทั้งหมด' }[_electiveFilter] || 'all';
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+
+  const rows = _getFilteredElectiveRows();
+  const opdByElective = {};
+  state.calendar.forEach(opd => {
+    try {
+      JSON.parse(opd.elective_ids || '[]').forEach(eid => {
+        if (!opdByElective[eid]) opdByElective[eid] = [];
+        opdByElective[eid].push(opd);
+      });
+    } catch(_) {}
+  });
+
+  const header = ['ชื่อ','สังกัด','ระดับ','Ward ช่วง 1','ช่วงที่ 1','Ward ช่วง 2','ช่วงที่ 2','OPD วันที่','OPD อาจารย์','สถานะ'];
+  const dataRows = rows.map(e => {
+    const r1 = parseRange(e.date_range  || '');
+    const r2 = parseRange(e.date_range2 || '');
+    const opds = (opdByElective[e.id] || []);
+    const opdDates = opds.map(o => { const d = new Date(o.date); return `${daysTH[d.getDay()]} ${fmtD(d)}`; }).join(', ');
+    const opdSups  = opds.map(o => o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—')).join(', ');
+    return [
+      e.name,
+      e.from_hospital || '',
+      e.level || '',
+      r1 ? (e.ward  || '') : '',
+      r1 ? `${fmtD(r1.start)} - ${fmtD(r1.end)}` : '',
+      r2 ? (e.ward2 || '') : '',
+      r2 ? `${fmtD(r2.start)} - ${fmtD(r2.end)}` : '',
+      opdDates,
+      opdSups,
+      _elecStatusText(e),
+    ];
+  });
+
+  const filename = `elective_${state.month}_${filterLabel}.csv`;
+  downloadTextFile(toCsv([header, ...dataRows]), filename, 'text/csv;charset=utf-8');
+  toast(`ดาวน์โหลด CSV แล้ว (${rows.length} คน) ✓`, 'success');
 }
 
 function renderElectiveTable() {
@@ -1476,32 +1935,80 @@ function renderElectiveTable() {
     return inR1 || inR2;
   });
 
-  // Auto-hide: ซ่อน elective ที่จบมาแล้ว 3+ วัน (ยกเว้นกด toggle)
-  const GRACE_DAYS = 3;
+  // ── Filter: สถานะ ──
+  const rangeStart = document.getElementById('elc-filter-start')?.value || '';
+  const rangeEnd   = document.getElementById('elc-filter-end')?.value   || '';
+
   const inMonth = allInMonth.filter(e => {
-    if (_showCompletedElectives) return true;
     const r1 = parseRange(e.date_range || '');
     const r2 = parseRange(e.date_range2 || '');
-    const ends = [r1?.end, r2?.end].filter(Boolean);
-    if (!ends.length) return true;
-    const lastEnd = new Date(Math.max(...ends));
-    const grace = new Date(lastEnd); grace.setDate(grace.getDate() + GRACE_DAYS);
-    return today <= grace;
-  });
-  const hiddenCount = allInMonth.length - inMonth.length;
+    const allEnds   = [r1?.end,   r2?.end  ].filter(Boolean);
+    const allStarts = [r1?.start, r2?.start].filter(Boolean);
+    const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds))   : null;
+    const firstStart = allStarts.length ? new Date(Math.min(...allStarts)) : null;
 
-  // อัปเดต counter
+    // filter ตาม status
+    if (_electiveFilter === 'active') {
+      // กำลังดูงาน: started แล้วยังไม่จบ
+      if (!firstStart || !lastEnd) return true;
+      return today >= firstStart && today <= lastEnd;
+    }
+    if (_electiveFilter === 'waiting') {
+      // รอเริ่ม
+      if (!firstStart) return false;
+      return today < firstStart;
+    }
+    if (_electiveFilter === 'done') {
+      // จบแล้ว
+      if (!lastEnd) return false;
+      return today > lastEnd;
+    }
+    // 'all' — แสดงทั้งหมด
+
+    // filter ช่วงเวลา (ใช้เมื่อ filter=all หรือประกอบกัน)
+    if (rangeStart) {
+      const rs = new Date(rangeStart);
+      if (lastEnd && lastEnd < rs) return false;
+    }
+    if (rangeEnd) {
+      const re = new Date(rangeEnd);
+      if (firstStart && firstStart > re) return false;
+    }
+    return true;
+  });
+
+  // filter ช่วงเวลาเพิ่มเติม (ใช้กับทุก filter mode)
+  const filteredByRange = (rangeStart || rangeEnd) && _electiveFilter !== 'all'
+    ? inMonth.filter(e => {
+        const r1 = parseRange(e.date_range || '');
+        const r2 = parseRange(e.date_range2 || '');
+        const allEnds   = [r1?.end,   r2?.end  ].filter(Boolean);
+        const allStarts = [r1?.start, r2?.start].filter(Boolean);
+        const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds))   : null;
+        const firstStart = allStarts.length ? new Date(Math.min(...allStarts)) : null;
+        if (rangeStart) { const rs = new Date(rangeStart); if (lastEnd && lastEnd < rs) return false; }
+        if (rangeEnd)   { const re = new Date(rangeEnd);   if (firstStart && firstStart > re) return false; }
+        return true;
+      })
+    : inMonth;
+
+  const hiddenCount = allInMonth.length - filteredByRange.length;
+
+  // (count handled above)
+
+  // อัปเดต count label
   const countEl = document.getElementById('completed-count');
-  if (countEl) countEl.textContent = hiddenCount > 0 ? `(ซ่อน ${hiddenCount} คนที่จบแล้ว)` : '';
+  if (countEl) {
+    const filterLabels = { active:'กำลังดูงาน', waiting:'รอเริ่ม', done:'จบแล้ว', all:'ทั้งหมด' };
+    countEl.textContent = `(${filterLabels[_electiveFilter] || ''}: ${filteredByRange.length} คน / รวม ${allInMonth.length} คน)`;
+  }
 
   if (!allInMonth.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">ไม่มีแพทย์ Elective เดือนนี้</td></tr>`;
     return;
   }
-  if (!inMonth.length && hiddenCount > 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
-      Elective ${hiddenCount} คนจบดูงานแล้ว (ซ่อนอัตโนมัติหลัง 3 วัน)
-    </td></tr>`;
+  if (!filteredByRange.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">ไม่มีรายการที่ตรงกับ filter ที่เลือก</td></tr>`;
     return;
   }
 
@@ -1532,7 +2039,7 @@ function renderElectiveTable() {
     return `${fmtShort(r.start.toISOString())} - ${fmtShort(r.end.toISOString())}`;
   }
 
-  tbody.innerHTML = inMonth.map(e => {
+  tbody.innerHTML = filteredByRange.map(e => {
     const r1 = parseRange(e.date_range || '');
     const r2 = parseRange(e.date_range2 || '');
 
@@ -1743,12 +2250,20 @@ function renderOPDDayList(dateStr) {
     el.innerHTML = entries.map(e => {
       const isSolo = e.opd_mode === 'solo';
       const title = isSolo ? 'ตรวจเอง' : (e.supervisor_name || '—');
-      const names = getOPDElectiveNames(e.elective_ids) || 'ยังไม่ได้เลือก Elective';
+      // แยกรายชื่อ elective เป็น list
+      let eIds = [];
+      try { eIds = JSON.parse(e.elective_ids || '[]'); } catch(_) {}
+      const electiveList = eIds.map(id => {
+        const el2 = state.electives.find(x => x.id === id);
+        return el2 ? `<div style="font-size:11px;padding:2px 0;border-bottom:1px dashed var(--gray2);color:var(--gray5)">• ${el2.name} <span style="color:var(--gray4)">${el2.level || ''}</span></div>` : '';
+      }).filter(Boolean).join('');
+      const eCount = eIds.length;
       return `<div style="border:1px solid var(--gray2);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-          <div>
-            <div style="font-weight:700;color:var(--navy)">${isSolo?'🩺':'👨‍⚕️'} ${title}</div>
-            <div style="font-size:12px;color:var(--gray4);margin-top:4px">👥 ${names}</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--navy);font-size:14px">${isSolo?'🩺':'👨‍⚕️'} ${title}</div>
+            ${eCount ? `<div style="font-size:11px;color:var(--gray4);margin:4px 0 2px">แพทย์ Elective ที่ออก OPD ด้วย (${eCount} คน):</div>` : '<div style="font-size:11px;color:var(--gray3);margin-top:4px">ยังไม่ได้เลือก Elective</div>'}
+            ${electiveList}
           </div>
           ${canEdit ? `<button type="button" class="btn btn-outline btn-sm" onclick="openOPDEditById('${e.id}')">แก้ไข</button>` : ''}
         </div>
@@ -2397,7 +2912,9 @@ function doSearchDebounced(q) {
     hide('search-result');
     return;
   }
-  if (!/[ก-๙]/.test(t) && !/[A-Za-z]/.test(t)) {
+  // อนุญาต date format (YYYY-MM-DD หรือ DD/MM/YYYY) ผ่านได้
+  const isDateLike = /^\d/.test(t);
+  if (!isDateLike && !/[ก-๙]/.test(t) && !/[A-Za-z]/.test(t)) {
     hide('search-result');
     return;
   }
@@ -2415,7 +2932,8 @@ async function runElectiveSearchNow() {
     toast('พิมพ์ชื่อให้ความยาวอย่างน้อย 2 ตัวอักษร', 'error');
     return;
   }
-  if (!/[ก-๙]/.test(t) && !/[A-Za-z]/.test(t)) {
+  const isDateLike2 = /^\d/.test(t);
+  if (!isDateLike2 && !/[ก-๙]/.test(t) && !/[A-Za-z]/.test(t)) {
     toast('พิมพ์ชื่อเป็นภาษาไทยหรืออังกฤษ', 'error');
     return;
   }
@@ -2428,12 +2946,122 @@ async function runElectiveSearchNow() {
   }
 }
 
+// ── Search by supervisor name ─────────────────────────────────────────────
+function searchBySupervisorName(q) {
+  const trimmed = q.trim();
+  const matches = state.supervisors.filter(s =>
+    s.name && s.name.includes(trimmed)
+  );
+  if (!matches.length) return null;
+
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+  let out = '';
+  for (const sup of matches) {
+    const opdRows = state.calendar.filter(o => o.supervisor_id === sup.id);
+    if (!opdRows.length) {
+      out += `👨‍⚕️ ${sup.name}
+📋 ยังไม่มีตาราง OPD ในเดือนนี้
+
+`;
+      continue;
+    }
+    out += `👨‍⚕️ ${sup.name}
+`;
+    for (const o of opdRows) {
+      const d = new Date(o.date);
+      const dayName = daysTH[d.getDay()];
+      const dateLabel = `${d.getDate()} ${monthsTH[d.getMonth()+1]}`;
+      // รายชื่อ elective ที่ต้องดู
+      let eIds = [];
+      try { eIds = JSON.parse(o.elective_ids || '[]'); } catch(_) {}
+      const eNames = eIds.map(id => {
+        const el = state.electives.find(x => x.id === id);
+        return el ? `    • ${el.name} (${el.level || '—'})` : '';
+      }).filter(Boolean).join('\n');
+      out += `📅 ${dayName} ${dateLabel}\n`;
+      if (eNames) out += `   แพทย์ Elective ที่ต้องดู:\n${eNames}\n`;
+    }
+    out += '\n';
+  }
+  return out.trim() || null;
+}
+
+// ── Search by date ────────────────────────────────────────────────────────
+function searchByDate(q) {
+  // รองรับ DD-MM-YYYY, DD/MM/YYYY, DD MM YYYY เป็นหลัก (วัน-เดือน-ปี)
+  let dateStr = '';
+  const t = q.trim();
+  // DD-MM-YYYY หรือ DD/MM/YYYY หรือ D-M-YYYY
+  const m1 = t.match(/^(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s](\d{4})$/);
+  if (m1) {
+    dateStr = `${m1[3]}-${String(m1[2]).padStart(2,'0')}-${String(m1[1]).padStart(2,'0')}`;
+  }
+  // YYYY-MM-DD (fallback กรณีพิมพ์แบบ ISO)
+  if (!dateStr && /^\d{4}-\d{2}-\d{2}$/.test(t)) {
+    dateStr = t;
+  }
+  if (!dateStr) return null;
+
+  const entries = state.calendar.filter(e => e.date === dateStr);
+  const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const daysTH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  const d = new Date(dateStr);
+  const dateLabel = `${daysTH[d.getDay()]} ${d.getDate()} ${monthsTH[d.getMonth()+1]} ${d.getFullYear()+543}`;
+
+  const [y] = dateStr.split('-').map(Number);
+  const hol = getThaiHolidays(y)[dateStr];
+
+  let out = `📅 ${dateLabel}\n`;
+  if (hol) out += `🎌 วันหยุด: ${hol.name}\n`;
+
+  if (!entries.length) {
+    out += hol ? '' : '\nไม่มีรายการ OPD วันนี้';
+    return out.trim();
+  }
+
+  out += '\n';
+  for (const o of entries) {
+    const isSolo = o.opd_mode === 'solo';
+    const supName = isSolo ? 'ตรวจเอง' : (o.supervisor_name || '—');
+    out += `👨‍⚕️ อาจารย์ที่ออก OPD: ${supName}\n`;
+    let eIds = [];
+    try { eIds = JSON.parse(o.elective_ids || '[]'); } catch(_) {}
+    const eNames = eIds.map(id => {
+      const el = state.electives.find(x => x.id === id);
+      return el ? `  • ${el.name} (${el.level || '—'})` : '';
+    }).filter(Boolean);
+    if (eNames.length) {
+      out += `👥 แพทย์ Elective (${eNames.length} คน):\n` + eNames.join('\n') + '\n';
+    } else {
+      out += '👥 ยังไม่ได้เลือก Elective\n';
+    }
+    out += '\n';
+  }
+  return out.trim();
+}
 async function _doSearchAsync(q) {
   const trimmed = (q || '').trim();
   if (!trimmed || trimmed.length < 2) {
     hide('search-result');
     return;
   }
+
+  // ── ลอง search วันที่ก่อน ──
+  const dateResult = searchByDate(trimmed);
+  if (dateResult) {
+    showElectiveSearchResult(dateResult, null);
+    return;
+  }
+
+  // ── ลอง search ชื่ออาจารย์ก่อน ──
+  const supResult = searchBySupervisorName(trimmed);
+  if (supResult) {
+    showElectiveSearchResult(supResult, null);
+    return;
+  }
+
   try {
     const res = await apiGet(
       `action=elective_preview&q=${encodeURIComponent(trimmed)}&month=${encodeURIComponent(state.month)}`
@@ -2537,6 +3165,84 @@ function copyPreview() {
 // ── Print (dialog ของเบราว์เซอร์ — บันทึกเป็น PDF ได้จากตัวเลือกเครื่องพิมพ์) ──
 function downloadPDF() {
   window.print();
+}
+
+async function saveCalendarImage() {
+  const monthLabel = document.getElementById('month-label')?.textContent || state.month;
+
+  // จับภาพ: section-hint + calendar-card
+  const calCard = document.querySelector('.calendar-card');
+  if (!calCard) { toast('ไม่พบ calendar', 'error'); return; }
+
+  // แจ้ง loading
+  toast('กำลังสร้างรูป...', '');
+
+  try {
+    // เพิ่ม header ชั่วคราวบนรูป
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'background:#fff;padding:0;font-family:Sarabun,sans-serif;display:inline-block;width:' + calCard.offsetWidth + 'px';
+
+    // header bar
+    const headerBar = document.createElement('div');
+    headerBar.style.cssText = 'background:#1B3A6B;color:#fff;padding:12px 18px;display:flex;align-items:center;gap:10px;border-radius:10px 10px 0 0';
+    headerBar.innerHTML = '<span style="font-size:16px;font-weight:700">📅 HSOS Calendar — ' + monthLabel + '</span>';
+
+    // chief summary
+    const male   = state.chiefs['male']   || {};
+    const female = state.chiefs['female'] || {};
+    const chiefBar = document.createElement('div');
+    chiefBar.style.cssText = 'background:#EBF2FF;padding:8px 18px;display:flex;gap:24px;font-size:12px;color:#1B3A6B;border-bottom:1px solid #ddd';
+    chiefBar.innerHTML =
+      '<span>♂ <strong>' + (male.chief_name || '—') + '</strong> · Supervise: ' + (male.supervise_list || '—') + '</span>' +
+      '<span>♀ <strong>' + (female.chief_name || '—') + '</strong> · Supervise: ' + (female.supervise_list || '—') + '</span>';
+
+    // hint bar
+    const hint = document.createElement('div');
+    hint.style.cssText = 'background:#f7f8fa;padding:7px 18px;font-size:11px;color:#6B7280;border-bottom:1px solid #eaecf0';
+    hint.textContent = 'ด้านบน = Chief/Supervise · ปฏิทินด้านล่าง = OPD รายวัน';
+
+    // clone calendar
+    const calClone = calCard.cloneNode(true);
+    calClone.style.borderRadius = '0 0 10px 10px';
+    calClone.style.boxShadow = 'none';
+    calClone.style.margin = '0';
+
+    // footer
+    const footer = document.createElement('div');
+    footer.style.cssText = 'background:#f7f8fa;padding:6px 18px;font-size:10px;color:#9ca3af;text-align:right;border-radius:0 0 10px 10px';
+    footer.textContent = 'HSOS · Siriraj Hematology · สร้างเมื่อ ' + new Date().toLocaleDateString('th-TH');
+
+    wrapper.appendChild(headerBar);
+    wrapper.appendChild(chiefBar);
+    wrapper.appendChild(hint);
+    wrapper.appendChild(calClone);
+    wrapper.appendChild(footer);
+
+    // แนบชั่วคราว (ต้องอยู่ใน DOM ให้ html2canvas จับได้)
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '-9999px';
+    wrapper.style.left = '0';
+    document.body.appendChild(wrapper);
+
+    const canvas = await html2canvas(wrapper, {
+      scale: 2,           // retina 2x
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+
+    document.body.removeChild(wrapper);
+
+    // download
+    const link = document.createElement('a');
+    link.download = 'calendar_' + state.month + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    toast('บันทึกรูป calendar แล้ว ✓', 'success');
+  } catch (err) {
+    toast('บันทึกรูปไม่ได้: ' + err.message, 'error');
+  }
 }
 
 // ── API helpers ───────────────────────────────────────────────
