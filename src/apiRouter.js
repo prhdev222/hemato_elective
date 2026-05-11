@@ -8,6 +8,11 @@ import { verifyToken, signToken } from './auth.js';
 import { findDoctorByName } from './fuzzyMatch.js';
 import { buildElectiveReplyMessage } from './lineTemplates.js';
 
+/** ค่าตั้งต้นสำหรับ OA @893tgcjb — ใช้เมื่อใน DB ยังว่าง */
+const LINE_OA_DEFAULT_SHEET =
+  'https://docs.google.com/spreadsheets/d/13x5NRqZVQMG59u34pTxLSRx0i9akduFcdLUquB7BAPw/edit?gid=0#gid=0';
+const LINE_OA_DEFAULT_ADD_FRIEND = 'https://line.me/R/ti/p/@893tgcjb';
+
 export const router = {
 
   // ── GET /api/... ────────────────────────────────────────
@@ -76,6 +81,9 @@ export const router = {
       case 'archive_preview':
         if (!can(user, 'admin')) return fail('Admin only');
         return ok({ data: await archivePreview(url.searchParams.get('target_month'), db) });
+      case 'line_oa_settings':
+        if (!can(user, 'editor')) return fail('Permission denied');
+        return ok({ data: await getLineOaSettings(db) });
       case 'elective_preview':
         return await runElectivePreview(url.searchParams, db);
       default:
@@ -198,6 +206,9 @@ export const router = {
       case 'archive_and_delete_month':
         if (!can(user,'admin')) return fail('Admin only');
         return ok(await archiveAndDeleteMonth(data.target_month, db));
+      case 'save_line_oa_settings':
+        if (!can(user, 'editor')) return fail('Permission denied');
+        return ok(await saveLineOaSettings(data.line_oa || data, db));
       default:
         return fail('Unknown action: ' + action);
     }
@@ -286,10 +297,44 @@ async function getSetting(key, db) {
   const { rows } = await db.execute({ sql:`SELECT value FROM settings WHERE key=?`, args:[key] });
   return rows[0]?.value || '';
 }
+async function getLineOaSettings(db) {
+  const welcome = await getSetting('line_oa_welcome', db);
+  const sheetRaw = await getSetting('line_oa_sheet_url', db);
+  const friendRaw = await getSetting('line_oa_add_friend_url', db);
+  return {
+    welcome,
+    sheet_url: sheetRaw || LINE_OA_DEFAULT_SHEET,
+    add_friend_url: friendRaw || LINE_OA_DEFAULT_ADD_FRIEND,
+  };
+}
+async function saveLineOaSettings(payload, db) {
+  const p = payload || {};
+  const pairs = [];
+  if (Object.prototype.hasOwnProperty.call(p, 'welcome')) {
+    pairs.push(['line_oa_welcome', String(p.welcome ?? '')]);
+  }
+  if (Object.prototype.hasOwnProperty.call(p, 'sheet_url')) {
+    pairs.push(['line_oa_sheet_url', String(p.sheet_url ?? '')]);
+  }
+  if (Object.prototype.hasOwnProperty.call(p, 'add_friend_url')) {
+    pairs.push(['line_oa_add_friend_url', String(p.add_friend_url ?? '')]);
+  }
+  for (const [key, val] of pairs) {
+    await db.execute({
+      sql: `INSERT INTO settings(key, value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+      args: [key, val],
+    });
+  }
+  return { success: true };
+}
 async function getPublicSettings(db, env) {
   const keys = ['pdf_manual_url', 'elective_calendar_url', 'calendar_public_view'];
   const result = [];
   for (const key of keys) result.push({ key, value: await getSetting(key, db) });
+  const lo = await getLineOaSettings(db);
+  result.push({ key: 'line_oa_welcome', value: lo.welcome });
+  result.push({ key: 'line_oa_sheet_url', value: lo.sheet_url });
+  result.push({ key: 'line_oa_add_friend_url', value: lo.add_friend_url });
   const liffId = typeof env?.LIFF_ID === 'string' ? env.LIFF_ID.trim() : '';
   result.push({ key: 'liff_id', value: liffId });
   return result;

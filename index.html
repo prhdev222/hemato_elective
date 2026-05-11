@@ -73,7 +73,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 .header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
 #user-label{font-size:12px;opacity:.8;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
 @media(min-width:480px){#user-label{max-width:220px}}
-#btn-login-admin{display:none}
+/* ห้ามใส่ #btn-login-admin{display:none} ที่นี่ — จะทับให้เปิดจาก JS แล้วมองไม่เห็นปุ่ม (เริ่มต้นซ่อนด้วย inline style บนปุ่ม) */
 .btn-header-login{
   background:rgba(255,255,255,.18);
   color:#fff;
@@ -130,11 +130,14 @@ body.menu-hidden #btn-menu-floating{display:flex}
 .toolbar-dropdown-panel{
   display:none;
   position:absolute;
-  left:50%;
-  transform:translateX(-50%);
+  /* ชิดซ้ายกับปุ่ม — ไม่ใช้คู่กึ่งกลางเพราะครึ่งซ้ายของเมนูจะหลุดขอบซ้ายของจอ */
+  left:0;
+  right:auto;
+  transform:none;
   top:calc(100% + 6px);
-  min-width:260px;
-  max-width:min(380px,calc(100vw - 32px));
+  min-width:min(260px,calc(100vw - 24px));
+  max-width:min(380px,calc(100vw - 24px));
+  box-sizing:border-box;
   background:var(--white);
   border:1px solid var(--gray2);
   border-radius:var(--radius-sm);
@@ -372,7 +375,7 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   #toolbar.toolbar-wrap{top:58px;padding:8px 10px 10px;gap:8px}
   .toolbar-row--nav{border-bottom:none;padding-bottom:6px;margin-bottom:0}
   .toolbar-dropdown-panel{
-    left:0;right:auto;transform:none;width:calc(100vw - 28px);max-width:360px;margin-left:auto;margin-right:auto
+    width:min(calc(100vw - 24px),380px);max-width:min(380px,calc(100vw - 24px));min-width:0
   }
   .toolbar-sep--inline{display:none!important}
   .toolbar-row--tools{justify-content:center;padding-left:4px;padding-right:4px}
@@ -824,8 +827,7 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
         <button type="button" class="toolbar-panel-action" onclick="toolbarCloseDropdowns();downloadPDF();" data-i18n="menu_export_print">🖨️ พิมพ์หน้า (PDF / เครื่องพิมพ์)</button>
         <button type="button" class="toolbar-panel-action" onclick="toolbarCloseDropdowns();saveCalendarImage();" data-i18n="menu_export_png">📷 บันทึกปฏิทินเป็น PNG</button>
         <div class="panel-sep-mini"></div>
-        <button type="button" class="toolbar-panel-action" onclick="toolbarCloseDropdowns();printOpdSupervisorSummary();" data-i18n="btn_opd_sum_print">🖨️ สรุป OPD เดือนนี้</button>
-        <button type="button" class="toolbar-panel-action" onclick="toolbarCloseDropdowns();downloadOpdSupervisorSummaryCsv();" data-i18n="btn_opd_sum_csv">📋 สรุป OPD (CSV)</button>
+        <button type="button" class="toolbar-panel-action" onclick="toolbarCloseDropdowns();openModal('modal-opd-summary-export');" data-i18n="btn_opd_sum_open">📊 สรุป OPD (พิมพ์ / CSV)</button>
       </div>
     </div>
     <span class="toolbar-sep toolbar-sep--inline" aria-hidden="true"></span>
@@ -1076,6 +1078,38 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   </div>
 </div>
 
+<!-- Supervisor / OPD summary — เลือกขอบเขตก่อนพิมพ์หรือ CSV -->
+<div class="overlay" id="modal-opd-summary-export">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 data-i18n="opd_sum_export_title">สรุปอาจารย์ / OPD</h2>
+      <button type="button" class="close-btn" onclick="closeModal('modal-opd-summary-export')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--gray4);line-height:1.5;margin:0" data-i18n="opd_sum_export_hint">เลือกว่าจะแสดงทุกครั้งออก OPD หรือแยกเฉพาะกับอาจารย์ / เฉพาะตรวจเอง จากนั้นกดพิมพ์หรือดาวน์โหลด CSV</p>
+      <div class="field" style="margin-top:14px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;margin-bottom:10px;font-size:13px">
+          <input type="radio" name="opd-sum-scope" id="opd-sum-scope-all" value="all" checked style="margin-top:3px;flex-shrink:0">
+          <span data-i18n="opd_sum_scope_all">ทุกครั้งออก OPD ในเดือนนี้ (รวมทุกโหมด)</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;margin-bottom:10px;font-size:13px">
+          <input type="radio" name="opd-sum-scope" id="opd-sum-scope-sup-el" value="supervisor_elective" style="margin-top:3px;flex-shrink:0">
+          <span data-i18n="opd_sum_scope_sup_el">เฉพาะรอบนั่งกับอาจารย์ที่ผูก Elective แล้ว (ไม่รวมตรวจเอง และไม่รวมยังไม่ผูก elective)</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;font-size:13px">
+          <input type="radio" name="opd-sum-scope" id="opd-sum-scope-solo" value="solo" style="margin-top:3px;flex-shrink:0">
+          <span data-i18n="opd_sum_scope_solo">เฉพาะรอบตรวจเอง (Solo clinic / ตรวจเอง) เท่านั้น</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-opd-summary-export')" data-i18n="btn_close">ปิด</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="runOpdSupervisorSummaryPrint()" data-i18n="btn_opd_sum_print_short">🖨️ พิมพ์สรุป</button>
+      <button type="button" class="btn btn-success btn-sm" onclick="runOpdSupervisorSummaryCsv()" data-i18n="btn_opd_sum_csv_short">📋 CSV</button>
+    </div>
+  </div>
+</div>
+
 <!-- LINE Bot Template Editor -->
 <div class="overlay" id="modal-linebot">
   <div class="modal modal-lg">
@@ -1118,6 +1152,32 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
         </div>
         <button class="btn btn-outline btn-sm" onclick="previewTemplate('welcome')">👁️ Preview</button>
         <div id="preview-welcome" class="tpl-preview" style="display:none"></div>
+
+        <div class="tpl-card" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--gray2)">
+          <h4>LINE Official OA — ข้อความก่อนเข้า LINE Group (@893tgcjb)</h4>
+          <p style="font-size:12px;color:var(--gray4);line-height:1.55">
+            สำหรับแจกแพทย์ elective <strong>ก่อน</strong> join กลุ่ม LINE — แยกจาก <code>bot_welcome</code> (ด้านบนใช้ตอนพิมพ์ชื่อจับคู่ในกลุ่ม)<br>
+            <strong>ข้อความ Welcome OA แก้ใน Google Sheet โดยตรง</strong> — ที่นี่บันทึกแค่ลิงก์ Sheet และลิงก์เพิ่มเพื่อน กด <strong>「บันทึกทั้งหมด」</strong>ด้านล่าง
+          </p>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px;margin-bottom:10px">
+            <div style="flex:0 0 auto">
+              <div style="font-size:11px;color:var(--gray4);margin-bottom:6px">QR เพิ่มเพื่อน OA</div>
+              <img src="./@893tgcjb.png" alt="LINE OA QR @893tgcjb" width="120" height="120" decoding="async" style="border:1px solid var(--gray2);border-radius:8px;background:#fff;display:block">
+            </div>
+            <div style="flex:1;min-width:200px">
+              <div class="field"><label>ลิงก์เพิ่มเพื่อน LINE OA</label>
+                <input type="text" id="line-oa-friend-url" placeholder="https://line.me/R/ti/p/@893tgcjb" style="width:100%;box-sizing:border-box;font-size:12px">
+              </div>
+              <div class="field" style="margin-top:8px"><label>ลิงก์ Google Sheet (แก้ welcome ใน Sheet)</label>
+                <input type="text" id="line-oa-sheet-url" style="width:100%;box-sizing:border-box;font-size:12px">
+              </div>
+              <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-outline btn-sm" onclick="openLineOaFriend()">🔗 เปิดลิงก์เพิ่มเพื่อน</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="openLineOaSheet()">🔗 เปิด Sheet</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Elective Reply Template -->
@@ -1319,6 +1379,22 @@ const _i18n = {
     search_intro:   'พิมพ์ชื่อ-นามสกุล “ผู้มา Elective” แล้วระบบจะแสดงกิจกรรม/สิ่งที่ต้องทำต่อไป (คัดลอกส่งต่อได้)',
     search_copy:    '📋 คัดลอกข้อความทั้งก้อน',
     sr_na:          '(ยังไม่ระบุ)',
+    btn_opd_sum_open: '📊 สรุป OPD (พิมพ์ / CSV)',
+    btn_opd_sum_print_short: '🖨️ พิมพ์สรุป',
+    btn_opd_sum_csv_short:  '📋 CSV',
+    opd_sum_export_title: 'สรุปอาจารย์ / OPD',
+    opd_sum_export_hint:
+      'เลือกว่าจะแสดงทุกครั้งออก OPD หรือแยกเฉพาะกับอาจารย์ / เฉพาะตรวจเอง จากนั้นกดพิมพ์หรือดาวน์โหลด CSV',
+    opd_sum_scope_all:
+      'ทุกครั้งออก OPD ในเดือนนี้ (รวมทุกโหมด)',
+    opd_sum_scope_sup_el:
+      'เฉพาะรอบนั่งกับอาจารย์ที่ผูก Elective แล้ว (ไม่รวมตรวจเอง และไม่รวมยังไม่ผูก elective)',
+    opd_sum_scope_solo:
+      'เฉพาะรอบตรวจเอง (Solo clinic / ตรวจเอง) เท่านั้น',
+    opd_sum_empty_sup_el: 'ไม่มีรอบนั่งกับอาจารย์ที่ผูก Elective ในเดือนนี้',
+    opd_sum_empty_solo: 'ไม่มีรอบตรวจเองในเดือนนี้',
+    opd_sum_note_sup_el: 'ขอบเขต: เฉพาะนั่งกับอาจารย์ + ผูก Elective',
+    opd_sum_note_solo: 'ขอบเขต: เฉพาะตรวจเอง',
     btn_opd_sum_print:'🖨️ สรุป OPD เดือนนี้',
     btn_opd_sum_csv:  '📋 สรุป OPD (CSV)',
     opd_sum_title:    'สรุปอาจารย์ OPD เดือน',
@@ -1398,6 +1474,20 @@ const _i18n = {
     search_intro:   'Type the elective physician’s full name — we’ll show ward / Chief / next steps here (you can copy the text).',
     search_copy:    '📋 Copy full message',
     sr_na:          '(Not specified)',
+    btn_opd_sum_open: '📊 OPD summary (Print / CSV)',
+    btn_opd_sum_print_short: '🖨️ Print summary',
+    btn_opd_sum_csv_short:  '📋 CSV',
+    opd_sum_export_title: 'Supervisor / OPD summary',
+    opd_sum_export_hint:
+      'Choose all sessions, only supervised sessions with electives linked, or solo clinic only — then print or download CSV.',
+    opd_sum_scope_all: 'All OPD slots this month',
+    opd_sum_scope_sup_el:
+      'Supervised sessions only, with at least one elective linked (excludes solo and sessions without electives)',
+    opd_sum_scope_solo: 'Solo clinic sessions only',
+    opd_sum_empty_sup_el: 'No supervised OPD with linked electives this month',
+    opd_sum_empty_solo: 'No solo-clinic OPD entries this month',
+    opd_sum_note_sup_el: 'Scope: supervised + elective linked',
+    opd_sum_note_solo: 'Scope: solo clinic only',
     btn_opd_sum_print:'🖨️ Print OPD summary',
     btn_opd_sum_csv:  '📋 OPD summary (CSV)',
     opd_sum_title:    'Supervisor / OPD summary',
@@ -2437,15 +2527,18 @@ function collectOpdSlotsForMonthSorted() {
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-/** @returns {{ flat: object[], bySupervisor: Map<string, object[]> }} */
-function buildOpdProfessorMonthSummaryModel() {
+/** Scope: all | supervisor_elective | solo */
+/** @param {{ scope?: string }} [options]
+ *  @returns {{ flat: object[], bySupervisor: Map<string, object[]> }} */
+function buildOpdProfessorMonthSummaryModel(options = {}) {
+  const scope = options.scope || 'all';
   const soloLbl = _lang === 'en' ? 'Solo clinic' : t('solo_opd');
   const withLbl = _lang === 'en' ? 'With supervisor' : 'กับอาจารย์';
   const naSup = _lang === 'en' ? '(Supervisor not set)' : '(ยังไม่ระบุอาจารย์)';
   const noEl = _lang === 'en' ? '—' : '(ยังไม่ผูก Elective)';
 
   const slots = collectOpdSlotsForMonthSorted();
-  const flat = [];
+  let flat = [];
 
   for (const slot of slots) {
     let ids = [];
@@ -2486,11 +2579,18 @@ function buildOpdProfessorMonthSummaryModel() {
       dateIso: slot.date || '',
       weekday,
       datePretty,
+      isSolo,
       modeLabel: isSolo ? soloLbl : withLbl,
       supervisorDisp,
       electiveText: parts.length ? parts.join(_lang === 'en' ? '; ' : ', ') : noEl,
       electiveCount: parts.length,
     });
+  }
+
+  if (scope === 'supervisor_elective') {
+    flat = flat.filter(r => !r.isSolo && r.electiveCount > 0);
+  } else if (scope === 'solo') {
+    flat = flat.filter(r => r.isSolo);
   }
 
   const bySupervisor = new Map();
@@ -2503,12 +2603,43 @@ function buildOpdProfessorMonthSummaryModel() {
   return { flat, bySupervisor };
 }
 
-function printOpdSupervisorSummary() {
+function getOpdSummaryScope() {
+  const r = document.querySelector('input[name="opd-sum-scope"]:checked');
+  const v = (r && r.value) || 'all';
+  if (v === 'supervisor_elective' || v === 'solo') return v;
+  return 'all';
+}
+
+function opdSummaryEmptyToastKey(scope) {
+  if (scope === 'supervisor_elective') return 'opd_sum_empty_sup_el';
+  if (scope === 'solo') return 'opd_sum_empty_solo';
+  return 'opd_sum_empty';
+}
+
+function opdSummaryScopeNoteKey(scope) {
+  if (scope === 'supervisor_elective') return 'opd_sum_note_sup_el';
+  if (scope === 'solo') return 'opd_sum_note_solo';
+  return '';
+}
+
+function runOpdSupervisorSummaryPrint() {
+  closeModal('modal-opd-summary-export');
+  printOpdSupervisorSummary({ scope: getOpdSummaryScope() });
+}
+
+function runOpdSupervisorSummaryCsv() {
+  closeModal('modal-opd-summary-export');
+  downloadOpdSupervisorSummaryCsv({ scope: getOpdSummaryScope() });
+}
+
+/** @param {{ scope?: string }} [opts] */
+function printOpdSupervisorSummary(opts = {}) {
+  const scope = opts.scope || 'all';
   const monthLabel = document.getElementById('month-label')?.textContent?.trim() || state.month;
-  const { flat, bySupervisor } = buildOpdProfessorMonthSummaryModel();
+  const { flat, bySupervisor } = buildOpdProfessorMonthSummaryModel({ scope });
 
   if (!flat.length) {
-    toast(t('opd_sum_empty'), 'error');
+    toast(t(opdSummaryEmptyToastKey(scope)), 'error');
     return;
   }
 
@@ -2545,6 +2676,11 @@ function printOpdSupervisorSummary() {
   ).join('');
 
   const isEn = _lang === 'en';
+  const noteKey = opdSummaryScopeNoteKey(scope);
+  const scopeNote = noteKey
+    ? `<div class="sub" style="margin-top:6px;color:#1d4ed8;font-weight:600">${escapeHtml(t(noteKey))}</div>`
+    : '';
+
   const html = `<!doctype html><html><head><meta charset="utf-8">
 <title>${escapeHtml(t('opd_sum_title'))} — ${escapeHtml(monthLabel)}</title>
 <style>
@@ -2561,6 +2697,7 @@ function printOpdSupervisorSummary() {
 </style></head><body>
   <h1>${escapeHtml(t('opd_sum_title'))} — ${escapeHtml(monthLabel)}</h1>
   <div class="sub">${escapeHtml(t('opd_sum_sub'))}</div>
+  ${scopeNote}
 
   <h2>${escapeHtml(t('opd_sum_grp'))}</h2>
   ${groupHtml}
@@ -2597,10 +2734,12 @@ function printOpdSupervisorSummary() {
   }, 250);
 }
 
-function downloadOpdSupervisorSummaryCsv() {
-  const { flat } = buildOpdProfessorMonthSummaryModel();
+/** @param {{ scope?: string }} [opts] */
+function downloadOpdSupervisorSummaryCsv(opts = {}) {
+  const scope = opts.scope || 'all';
+  const { flat } = buildOpdProfessorMonthSummaryModel({ scope });
   if (!flat.length) {
-    toast(t('opd_sum_empty'), 'error');
+    toast(t(opdSummaryEmptyToastKey(scope)), 'error');
     return;
   }
 
@@ -2618,13 +2757,27 @@ function downloadOpdSupervisorSummaryCsv() {
     String(r.electiveCount),
   ]);
 
+  const suffix =
+    scope === 'supervisor_elective' ? '_sup_elective' : scope === 'solo' ? '_solo' : '';
   const fname = isEn
-    ? `opd_summary_supervisors_${state.month}.csv`
-    : `สรุป_opd_อาจารย์_${state.month}.csv`;
+    ? `opd_summary_supervisors_${state.month}${suffix}.csv`
+    : `สรุป_opd_อาจารย์_${state.month}${suffix}.csv`;
 
   downloadTextFile(toCsv([header, ...dataRows]), fname, 'text/csv;charset=utf-8');
+  const scopeHint =
+    scope === 'supervisor_elective'
+      ? isEn
+        ? ' (supervised + elective)'
+        : ' (กับอาจารย์+ผูก elective)'
+      : scope === 'solo'
+        ? isEn
+          ? ' (solo)'
+          : ' (ตรวจเอง)'
+        : '';
   toast(
-    (isEn ? `Downloaded CSV (${flat.length} OPD slot(s))` : `ดาวน์โหลด CSV แล้ว (${flat.length} รายการออก OPD)`) + ' ✓',
+    (isEn ? `Downloaded CSV (${flat.length} OPD slot(s))` : `ดาวน์โหลด CSV แล้ว (${flat.length} รายการออก OPD)`) +
+      scopeHint +
+      ' ✓',
     'success'
   );
 }
@@ -3256,7 +3409,7 @@ async function saveChief() {
 }
 
 // ── Manage data ──────────────────────────────────────────────
-function loadManageData() {
+async function loadManageData() {
   // Supervisors
   const supList = document.getElementById('sup-list');
   supList.innerHTML = state.supervisors.map(s =>
@@ -3278,6 +3431,28 @@ function loadManageData() {
 
   // Residents
   renderResidentList();
+}
+
+async function loadLineOaManageForm() {
+  try {
+    const res = await apiGet('action=line_oa_settings');
+    if (!res.success || !res.data) return;
+    const s = document.getElementById('line-oa-sheet-url');
+    const f = document.getElementById('line-oa-friend-url');
+    if (s) s.value = res.data.sheet_url || '';
+    if (f) f.value = res.data.add_friend_url || '';
+  } catch (e) { /* ignore */ }
+}
+
+function openLineOaSheet() {
+  const u = (document.getElementById('line-oa-sheet-url')?.value || '').trim();
+  if (u) window.open(u, '_blank', 'noopener,noreferrer');
+  else toast('ยังไม่มีลิงก์ Sheet', 'error');
+}
+function openLineOaFriend() {
+  const u = (document.getElementById('line-oa-friend-url')?.value || '').trim();
+  if (u) window.open(u, '_blank', 'noopener,noreferrer');
+  else toast('ยังไม่มีลิงก์เพิ่มเพื่อน', 'error');
 }
 
 function renderResidentList() {
@@ -5312,6 +5487,7 @@ async function loadLineBotTemplates() {
       if (groupId) document.getElementById('setting-group-id').value = groupId.value || '';
     }
   } catch (e) { /* silent */ }
+  await loadLineOaManageForm();
 }
 
 async function saveLineBotTemplates() {
@@ -5339,21 +5515,48 @@ async function saveLineBotTemplates() {
     ];
     const pdfUrl = document.getElementById('setting-pdf-url').value;
     const calUrl = (document.getElementById('setting-calendar-url') || {}).value || '';
+    const loSheet = (document.getElementById('line-oa-sheet-url')?.value || '').trim();
+    const loFriend = (document.getElementById('line-oa-friend-url')?.value || '').trim();
+
     const res = await api(
       { action: 'save_templates', templates, pdf_manual_url: pdfUrl, elective_calendar_url: calUrl },
       true
     );
     if (!res.success) throw new Error(res.error || 'บันทึกไม่ได้');
+
+    const rLo = await api(
+      { action: 'save_line_oa_settings', line_oa: { sheet_url: loSheet, add_friend_url: loFriend } },
+      true
+    );
+    if (!rLo.success) throw new Error(rLo.error || 'บันทึก LINE OA ไม่ได้');
+
     closeModal('modal-linebot');
-    toast('บันทึก Template แล้ว ✓', 'success');
-    // อัปเดตปุ่มคู่มือทันที (ไม่ต้องรีโหลดหน้า)
-    state.publicSettings = [
-      { key: 'pdf_manual_url', value: pdfUrl },
-      { key: 'elective_calendar_url', value: calUrl },
-      ...state.publicSettings.filter(
-        x => x.key !== 'pdf_manual_url' && x.key !== 'elective_calendar_url'
-      ),
-    ];
+    toast('บันทึก Template และลิงก์ LINE OA แล้ว ✓', 'success');
+
+    try {
+      const pub = await apiGet('action=public_settings');
+      if (pub?.success && Array.isArray(pub.data)) state.publicSettings = pub.data;
+    } catch (e) { /* ignore — fallback merge */
+      const prevWelcome =
+        state.publicSettings.find(x => x.key === 'line_oa_welcome')?.value ?? '';
+      state.publicSettings = [
+        { key: 'pdf_manual_url', value: pdfUrl },
+        { key: 'elective_calendar_url', value: calUrl },
+        { key: 'line_oa_welcome', value: prevWelcome },
+        { key: 'line_oa_sheet_url', value: loSheet },
+        { key: 'line_oa_add_friend_url', value: loFriend },
+        ...state.publicSettings.filter(
+          x =>
+            ![
+              'pdf_manual_url',
+              'elective_calendar_url',
+              'line_oa_welcome',
+              'line_oa_sheet_url',
+              'line_oa_add_friend_url',
+            ].includes(x.key)
+        ),
+      ];
+    }
     applyManualLink();
   } catch(e) { toast('บันทึกไม่ได้: ' + e.message, 'error'); }
 }

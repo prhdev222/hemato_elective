@@ -140,7 +140,11 @@ INSERT OR IGNORE INTO settings(key,value) VALUES
   ('fuzzy_threshold',     '90'),
   ('pdf_manual_url',      ''),
   ('line_group_id',       ''),
-  ('calendar_public_view','TRUE');
+  ('calendar_public_view','TRUE'),
+  ('line_oa_welcome',     ''),
+  ('line_oa_sheet_url',
+   'https://docs.google.com/spreadsheets/d/13x5NRqZVQMG59u34pTxLSRx0i9akduFcdLUquB7BAPw/edit?gid=0#gid=0'),
+  ('line_oa_add_friend_url', 'https://line.me/R/ti/p/@893tgcjb');
 
 INSERT OR IGNORE INTO templates(key,description,value) VALUES
   ('bot_welcome',            'ข้อความต้อนรับหลัก',          ''),
