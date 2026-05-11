@@ -946,7 +946,12 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
     <div style="overflow-x:auto">
       <table class="elective-table">
         <thead><tr>
-          <th>ชื่อ / สังกัด</th><th>ระดับ</th><th>Round Ward</th><th>OPD ที่ได้รับ</th><th>สถานะ</th><th></th>
+          <th data-i18n="el_col_name">ชื่อ / สังกัด</th>
+          <th data-i18n="el_col_level">ระดับ</th>
+          <th data-i18n="el_col_ward">Round Ward</th>
+          <th data-i18n="el_col_opd">OPD ที่ได้รับ</th>
+          <th data-i18n="el_col_status">สถานะ</th>
+          <th data-i18n="el_col_actions" style="width:44px"></th>
         </tr></thead>
         <tbody id="elective-tbody"><tr><td colspan="6" class="empty-state">ไม่มีข้อมูล</td></tr></tbody>
       </table>
@@ -1330,6 +1335,14 @@ const _i18n = {
     menu_panel_font:   'ขนาดตัวอักษร',
     menu_manual_pdf:   '📘 คู่มือ PDF',
     menu_manual_web:   '🌐 คู่มือเว็บ',
+    el_col_name:       'ชื่อ / สังกัด',
+    el_col_level:      'ระดับ',
+    el_col_ward:       'Round Ward',
+    el_col_opd:        'OPD ที่ได้รับ',
+    el_col_status:     'สถานะ',
+    el_col_actions:    '',
+    status_badge_complete: 'ผ่านครบแล้ว',
+    days_until_start: (n) => `อีก ${n} วัน`,
   },
   en: {
     cal_hint:       'Top = Chief/Supervise by ward · Calendar below = Daily OPD · ',
@@ -1401,6 +1414,14 @@ const _i18n = {
     menu_panel_font:   'Font size',
     menu_manual_pdf:   '📘 PDF manual',
     menu_manual_web:   '🌐 Web manual',
+    el_col_name:       'Name / affiliation',
+    el_col_level:      'Level',
+    el_col_ward:       'Ward rotation',
+    el_col_opd:        'OPD assigned',
+    el_col_status:     'Status',
+    el_col_actions:    'Actions',
+    status_badge_complete: 'Completed',
+    days_until_start: (n) => `Starts in ${n} day${n !== 1 ? 's' : ''}`,
   }
 };
 
@@ -2256,12 +2277,22 @@ function _elecStatusText(e) {
 
 function printElectiveTable() {
   const monthLabel = document.getElementById('elective-month-label')?.textContent || '';
-  const filterLabel = { active:'กำลังดูงาน', waiting:'รอเริ่ม', done:'จบแล้ว', all:'ทั้งหมด' }[_electiveFilter] || '';
-  const title = `แพทย์ Elective — ${monthLabel} (${filterLabel})`;
+  const fk = { active: 'f_active', waiting: 'f_waiting', done: 'f_done', all: 'f_all' }[_electiveFilter] || 'f_all';
+  const filterLabel = t(fk);
+  const title =
+    _lang === 'en'
+      ? `Elective physicians — ${monthLabel} (${filterLabel})`
+      : `แพทย์ Elective — ${monthLabel} (${filterLabel})`;
 
   const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
-  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+  const daysENpr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function fmtD(d) {
+    if (_lang === 'en') {
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`;
+  }
 
   const rows = _getFilteredElectiveRows();
 
@@ -2279,13 +2310,14 @@ function printElectiveTable() {
   const tableRows = rows.map(e => {
     const r1 = parseRange(e.date_range  || '');
     const r2 = parseRange(e.date_range2 || '');
-    const ward1Str = r1 ? `${e.ward || ''} (${fmtD(r1.start)}–${fmtD(r1.end)})` : '—';
-    const ward2Str = r2 ? `${e.ward2 || ''} (${fmtD(r2.start)}–${fmtD(r2.end)})` : '';
+    const ward1Str = r1 ? `${formatWardForDisplay(e.ward || '')} (${fmtD(r1.start)}–${fmtD(r1.end)})` : '—';
+    const ward2Str = r2 ? `${formatWardForDisplay(e.ward2 || '')} (${fmtD(r2.start)}–${fmtD(r2.end)})` : '';
     const wardStr  = [ward1Str, ward2Str].filter(Boolean).join('<br>');
     const opds = (opdByElective[e.id] || []).map(o => {
       const d = new Date(o.date);
-      const sup = o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—');
-      return `${daysTH[d.getDay()]} ${fmtD(d)} — ${sup}`;
+      const dayShort = _lang === 'en' ? daysENpr[d.getDay()] : daysTH[d.getDay()];
+      const sup = o.opd_mode === 'solo' ? t('solo_opd') : (o.supervisor_name || '—');
+      return `${dayShort} ${fmtD(d)} — ${sup}`;
     }).join('<br>') || '—';
     return `<tr>
       <td><strong>${e.name}</strong><br><span style="color:#666;font-size:11px">${e.from_hospital || ''}</span></td>
@@ -2312,11 +2344,11 @@ function printElectiveTable() {
     <h1>${escapeHtml(title)}</h1>
     <table>
       <thead><tr>
-        <th>ชื่อ / สังกัด</th><th>ระดับ</th><th>Round Ward</th><th>OPD ที่ได้รับ</th><th>สถานะ</th>
+        <th>${escapeHtml(t('el_col_name'))}</th><th>${escapeHtml(t('el_col_level'))}</th><th>${escapeHtml(t('el_col_ward'))}</th><th>${escapeHtml(t('el_col_opd'))}</th><th>${escapeHtml(t('el_col_status'))}</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
-    <p style="font-size:11px;color:#999;margin-top:10px">พิมพ์วันที่: ${new Date().toLocaleDateString('th-TH')}</p>
+    <p style="font-size:11px;color:#999;margin-top:10px">${_lang === 'en' ? 'Printed:' : 'พิมพ์วันที่:'} ${new Date().toLocaleDateString(_lang === 'en' ? 'en-GB' : 'th-TH', { timeZone: 'Asia/Bangkok' })}</p>
     <div style="text-align:right;margin-top:8px">
       <button onclick="window.print()" style="padding:6px 14px;cursor:pointer">🖨️ พิมพ์</button>
     </div>
@@ -2330,11 +2362,16 @@ function printElectiveTable() {
 
 function downloadElectiveTableCSV() {
   const monthLabel = document.getElementById('elective-month-label')?.textContent || state.month;
-  const filterLabel = { active:'กำลังดูงาน', waiting:'รอเริ่ม', done:'จบแล้ว', all:'ทั้งหมด' }[_electiveFilter] || 'all';
 
   const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
-  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+  const daysENcsv = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function fmtD(d) {
+    if (_lang === 'en') {
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`;
+  }
 
   const rows = _getFilteredElectiveRows();
   const opdByElective = {};
@@ -2347,13 +2384,22 @@ function downloadElectiveTableCSV() {
     } catch(_) {}
   });
 
-  const header = ['ชื่อ','สังกัด','ระดับ','Ward ช่วง 1','ช่วงที่ 1','Ward ช่วง 2','ช่วงที่ 2','OPD วันที่','OPD อาจารย์','สถานะ'];
+  const header =
+    _lang === 'en'
+      ? ['Name', 'Affiliation', 'Level', 'Ward (period 1)', 'Period 1 dates', 'Ward (period 2)', 'Period 2 dates', 'OPD dates', 'OPD supervisor', 'Status']
+      : ['ชื่อ','สังกัด','ระดับ','Ward ช่วง 1','ช่วงที่ 1','Ward ช่วง 2','ช่วงที่ 2','OPD วันที่','OPD อาจารย์','สถานะ'];
   const dataRows = rows.map(e => {
     const r1 = parseRange(e.date_range  || '');
     const r2 = parseRange(e.date_range2 || '');
     const opds = (opdByElective[e.id] || []);
-    const opdDates = opds.map(o => { const d = new Date(o.date); return `${daysTH[d.getDay()]} ${fmtD(d)}`; }).join(', ');
-    const opdSups  = opds.map(o => o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—')).join(', ');
+    const opdDates = opds
+      .map(o => {
+        const d = new Date(o.date);
+        const dayShort = _lang === 'en' ? daysENcsv[d.getDay()] : daysTH[d.getDay()];
+        return `${dayShort} ${fmtD(d)}`;
+      })
+      .join(', ');
+    const opdSups  = opds.map(o => (o.opd_mode === 'solo' ? t('solo_opd') : (o.supervisor_name || '—'))).join(', ');
     return [
       e.name,
       e.from_hospital || '',
@@ -2368,9 +2414,13 @@ function downloadElectiveTableCSV() {
     ];
   });
 
-  const filename = `elective_${state.month}_${filterLabel}.csv`;
+  const filterSlug = _electiveFilter || 'all';
+  const filename = `elective_${state.month}_${filterSlug}.csv`;
   downloadTextFile(toCsv([header, ...dataRows]), filename, 'text/csv;charset=utf-8');
-  toast(`ดาวน์โหลด CSV แล้ว (${rows.length} คน) ✓`, 'success');
+  toast(
+    (_lang === 'en' ? `Downloaded CSV (${rows.length} row(s))` : `ดาวน์โหลด CSV แล้ว (${rows.length} คน)`) + ' ✓',
+    'success'
+  );
 }
 
 /** ชื่อ elective บนสรุปตามภาษา UI */
@@ -2754,16 +2804,21 @@ function renderElectiveTable() {
 
     let statusBadge = '';
     if (lastEnd && today > lastEnd) {
-      statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46">✅ ผ่านครบแล้ว</span>';
+      statusBadge = `<span class="badge" style="background:#d1fae5;color:#065f46">✅ ${t('status_badge_complete')}</span>`;
     } else if (firstStart && today >= firstStart) {
-      // คำนวณวันที่เหลือ
-      const daysLeft = lastEnd ? Math.ceil((lastEnd - today) / 86400000) : '?';
-      statusBadge = `<span class="badge" style="background:#dbeafe;color:#1e40af">🔄 กำลังดูงาน</span>
-        <div style="font-size:10px;color:var(--gray4);margin-top:3px">เหลือ ${daysLeft} วัน</div>`;
+      const daysLeftNum = lastEnd ? Math.ceil((lastEnd - today) / 86400000) : null;
+      const daysLeftLine =
+        daysLeftNum != null && typeof t('days_left') === 'function'
+          ? `<div style="font-size:10px;color:var(--gray4);margin-top:3px">${t('days_left')(daysLeftNum)}</div>`
+          : '';
+      statusBadge = `<span class="badge" style="background:#dbeafe;color:#1e40af">🔄 ${t('status_active')}</span>${daysLeftLine}`;
     } else if (firstStart) {
       const daysUntil = Math.ceil((firstStart - today) / 86400000);
-      statusBadge = `<span class="badge" style="background:var(--gold2);color:var(--gold)">⏳ รอเริ่ม</span>
-        <div style="font-size:10px;color:var(--gray4);margin-top:3px">อีก ${daysUntil} วัน</div>`;
+      const untilLine =
+        typeof t('days_until_start') === 'function'
+          ? `<div style="font-size:10px;color:var(--gray4);margin-top:3px">${t('days_until_start')(daysUntil)}</div>`
+          : '';
+      statusBadge = `<span class="badge" style="background:var(--gold2);color:var(--gold)">⏳ ${t('status_waiting')}</span>${untilLine}`;
     } else {
       statusBadge = '<span class="badge" style="background:var(--gray1);color:var(--gray4)">—</span>';
     }
