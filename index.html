@@ -1540,6 +1540,38 @@ function opdSupervisorDisplayName(oc) {
   return th || en;
 }
 
+/** การ์ด Ward — Chief จาก chief_residents.name_en เมื่อ lang === 'en' */
+function chiefResidentDisplayNameForLang(chiefRow, lang) {
+  if (!chiefRow?.chief_name) return '—';
+  const th = String(chiefRow.chief_name).trim();
+  if (!th) return '—';
+  if (lang !== 'en') return th;
+  const r = (state.residents || []).find(x => String(x.name || '').trim() === th);
+  const en = String(r?.name_en || '').trim();
+  return en || th;
+}
+function chiefResidentDisplayName(chiefRow) {
+  return chiefResidentDisplayNameForLang(chiefRow, _lang);
+}
+
+/** การ์ด Ward — Supervise จาก supervisors.name_en ต่อชื่อ (คั่นด้วย comma ใน DB) */
+function superviseListDisplayForLang(superviseListStr, lang) {
+  const raw = String(superviseListStr || '').trim();
+  if (!raw) return '—';
+  const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return '—';
+  if (lang !== 'en') return parts.join(', ');
+  const mapped = parts.map(thName => {
+    const sup = (state.supervisors || []).find(s => String(s.name || '').trim() === thName);
+    const en = String(sup?.name_en || '').trim();
+    return en || thName;
+  });
+  return mapped.join(', ');
+}
+function superviseListDisplay(superviseListStr) {
+  return superviseListDisplayForLang(superviseListStr, _lang);
+}
+
 function applyLang() {
   // อัปเดต [data-i18n] elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -1580,6 +1612,7 @@ function applyLang() {
   document.getElementById('lang-btn-en')?.classList.toggle('active', _lang === 'en');
   // re-render เฉพาะส่วนที่มี label สถานะ (elective table + filter count)
   if (typeof renderElectiveTable === 'function') renderElectiveTable();
+  if (typeof renderChiefs === 'function') renderChiefs();
 }
 
 function setLang(lang) {
@@ -1946,8 +1979,8 @@ function openWardSchedule(wardCode) {
   );
 
   // summary
-  const chiefName = chief.chief_name || '—';
-  const supList   = chief.supervise_list || '—';
+  const chiefName = chiefResidentDisplayName(chief);
+  const supList   = superviseListDisplay(chief.supervise_list);
   document.getElementById('ward-schedule-summary').innerHTML =
     `<strong>👑 ${t("chief_label")}</strong> ${chiefName} &nbsp;|&nbsp; <strong>👨‍⚕️ ${t('supervised_by_label')}</strong> ${supList}` +
     `<br><span style="color:var(--navy);font-weight:700">${electives.length}</span> ` + (_i18n[_lang]?.round_count || _i18n.th.round_count)(electives.length, wardLabel);
@@ -2153,10 +2186,10 @@ function downloadWardScheduleCSV() {
 function renderChiefs() {
   const male   = state.chiefs['male']   || {};
   const female = state.chiefs['female'] || {};
-  setText('chief-male-name',   male.chief_name    || '—');
-  setText('chief-male-sup',    male.supervise_list  || '—');
-  setText('chief-female-name', female.chief_name   || '—');
-  setText('chief-female-sup',  female.supervise_list || '—');
+  setText('chief-male-name',   chiefResidentDisplayName(male));
+  setText('chief-male-sup',    superviseListDisplay(male.supervise_list));
+  setText('chief-female-name', chiefResidentDisplayName(female));
+  setText('chief-female-sup',  superviseListDisplay(female.supervise_list));
 }
 
 // ── Thai Public Holidays + DB holidays ───────────────────────
@@ -3864,15 +3897,15 @@ function displayLineIdForSearchLine(line) {
   return s.startsWith('@') ? s : `@${s}`;
 }
 function enSearchChiefBlock(chief) {
-  const name = chief.chief_name || '—';
+  const name = chiefResidentDisplayNameForLang(chief, 'en');
+  const supDisp = superviseListDisplayForLang(chief.supervise_list, 'en');
   const lineRaw = String(chief.chief_line_id || '').trim();
   let s = `👑 Chief: ${name}`;
   if (lineRaw) {
     s += `\n📱 LINE ID: ${displayLineIdForSearchLine(lineRaw)}`;
     s += '\n(Please add LINE to coordinate the ward round time and location.)';
   }
-  const sup = String(chief.supervise_list || '').trim();
-  if (sup) s += `\n👨‍⚕️ Attending physician for rounds: ${sup}`;
+  if (supDisp && supDisp !== '—') s += `\n👨‍⚕️ Attending physician for rounds: ${supDisp}`;
   return s;
 }
 const ELECTIVE_CALENDAR_WEB_URL = 'https://hemato-elective.pages.dev/';
@@ -4273,8 +4306,8 @@ async function saveCalendarImage() {
     const chiefBar = document.createElement('div');
     chiefBar.style.cssText = 'background:#EBF2FF;padding:8px 18px;display:flex;gap:24px;font-size:12px;color:#1B3A6B;border-bottom:1px solid #ddd';
     chiefBar.innerHTML =
-      '<span>♂ <strong>' + (male.chief_name || '—') + '</strong> · Supervise: ' + (male.supervise_list || '—') + '</span>' +
-      '<span>♀ <strong>' + (female.chief_name || '—') + '</strong> · Supervise: ' + (female.supervise_list || '—') + '</span>';
+      '<span>♂ <strong>' + escapeHtml(chiefResidentDisplayName(male)) + '</strong> · Supervise: ' + escapeHtml(superviseListDisplay(male.supervise_list)) + '</span>' +
+      '<span>♀ <strong>' + escapeHtml(chiefResidentDisplayName(female)) + '</strong> · Supervise: ' + escapeHtml(superviseListDisplay(female.supervise_list)) + '</span>';
 
     // hint bar
     const hint = document.createElement('div');
