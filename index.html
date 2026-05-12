@@ -1293,6 +1293,11 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <div class="tab-panel" id="tpl-settings">
         <div class="tpl-card">
           <h4>⚙️ ตั้งค่า LINE Bot</h4>
+          <div class="field" style="padding-bottom:12px;margin-bottom:14px;border-bottom:1px dashed var(--gray2)">
+            <label data-i18n="linebot_activity_admin_label">กิจกรรมสาขาโลหิตวิทยา (แก้รายการบนเว็บ)</label>
+            <p style="font-size:11px;color:var(--gray4);margin:0 0 8px;line-height:1.5" data-i18n="linebot_activity_admin_hint">แก้รายการกิจกรรม ข้อความประกาศ (TH/EN) และลิงก์ Google Form ได้ที่เว็บ Admin — คนละระบบกับ HSOS Calendar</p>
+            <a href="https://hemsi-activity.pages.dev/admin/" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="display:inline-flex;align-items:center;text-decoration:none" data-i18n="linebot_activity_admin_btn">🔗 เปิด Admin แก้กิจกรรม (hemsi-activity)</a>
+          </div>
           <div class="field" style="margin-top:8px">
             <label>URL คู่มือ PDF</label>
             <input type="text" id="setting-pdf-url" placeholder="https://drive.google.com/...">
@@ -1344,6 +1349,10 @@ const _i18n = {
     btn_print:      '🖨️ พิมพ์',
     btn_csv:        '⬇️ CSV',
     btn_close:      'ปิด',
+    linebot_activity_admin_label: 'กิจกรรมสาขาโลหิตวิทยา (แก้รายการบนเว็บ)',
+    linebot_activity_admin_hint:
+      'แก้รายการกิจกรรม ข้อความประกาศ (TH/EN) และลิงก์ Google Form ได้ที่เว็บ Admin — คนละระบบกับ HSOS Calendar',
+    linebot_activity_admin_btn: '🔗 เปิด Admin แก้กิจกรรม (hemsi-activity)',
     elec_title:     '📋 แพทย์ Elective',
     chief_label:    'Chief:',
     sup_label:      'Supervise:',
@@ -1440,6 +1449,10 @@ const _i18n = {
     btn_print:      '🖨️ Print',
     btn_csv:        '⬇️ CSV',
     btn_close:      'Close',
+    linebot_activity_admin_label: 'Hematology elective activities (external admin)',
+    linebot_activity_admin_hint:
+      'Edit activities, notice banner (TH/EN), and Google Form links on the separate Admin site — not part of this HSOS calendar.',
+    linebot_activity_admin_btn: '🔗 Open Admin — hemsi-activity',
     elec_title:     '📋 Elective Physicians',
     chief_label:    'Chief:',
     sup_label:      'Supervise:',
