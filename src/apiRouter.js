@@ -71,7 +71,7 @@ export const router = {
         if (!can(user, 'admin')) return fail('Admin only');
         return ok({ data: await getUsers(db) });
       case 'templates':
-        if (!can(user, 'admin')) return fail('Admin only');
+        if (!can(user, 'editor')) return fail('Permission denied');
         return ok({ data: await getTemplates(db) });
       case 'settings':
         if (!can(user, 'admin')) return fail('Admin only');
@@ -193,9 +193,12 @@ export const router = {
       case 'change_pin':
         return ok(await changePin(user.id, data.old_pin, data.new_pin, db));
       case 'save_templates':
-        if (!can(user,'admin')) return fail('Admin only');
+        if (!can(user, 'editor')) return fail('Permission denied');
         return ok(
-          await saveTemplates(data.templates, data.pdf_manual_url, data.elective_calendar_url, db)
+          await saveTemplates(data.templates, data.pdf_manual_url, data.elective_calendar_url, db, {
+            line_oa_sheet_url: data.line_oa_sheet_url,
+            line_oa_add_friend_url: data.line_oa_add_friend_url,
+          })
         );
       case 'save_holiday':
         if (!can(user,'editor')) return fail('Permission denied');
@@ -559,7 +562,7 @@ async function getSettings(db) {
   const { rows } = await db.execute(`SELECT key, value FROM settings ORDER BY key`);
   return rows;
 }
-async function saveTemplates(templates, pdfUrl, electiveCalendarUrl, db) {
+async function saveTemplates(templates, pdfUrl, electiveCalendarUrl, db, lineOaExtras = {}) {
   if (templates && Array.isArray(templates)) {
     for (const t of templates) {
       await db.execute({
@@ -578,6 +581,18 @@ async function saveTemplates(templates, pdfUrl, electiveCalendarUrl, db) {
     await db.execute({
       sql: `INSERT INTO settings(key, value) VALUES('elective_calendar_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
       args: [electiveCalendarUrl || ''],
+    });
+  }
+  if (lineOaExtras.line_oa_sheet_url !== undefined) {
+    await db.execute({
+      sql: `INSERT INTO settings(key, value) VALUES('line_oa_sheet_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+      args: [lineOaExtras.line_oa_sheet_url || ''],
+    });
+  }
+  if (lineOaExtras.line_oa_add_friend_url !== undefined) {
+    await db.execute({
+      sql: `INSERT INTO settings(key, value) VALUES('line_oa_add_friend_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+      args: [lineOaExtras.line_oa_add_friend_url || ''],
     });
   }
   return { success: true };

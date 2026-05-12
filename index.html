@@ -455,12 +455,14 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
         <button class="btn btn-primary" style="flex:1" onclick="showLoginForm()">🔓 เข้าสู่ระบบ</button>
       </div>
       <div id="login-form" style="display:none">
-        <div class="field"><label>ชื่อผู้ใช้ <span class="req">*</span></label>
-          <input type="text" id="login-name" placeholder="ชื่อที่ตั้งไว้ในระบบ"></div>
-        <div class="field"><label>PIN <span class="req">*</span></label>
-          <input type="password" id="login-pin" placeholder="PIN 4-6 หลัก" onkeydown="if(event.key==='Enter')doLogin()"></div>
-        <div id="login-err" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
-        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">เข้าสู่ระบบ</button>
+        <form id="form-login" onsubmit="event.preventDefault(); doLogin();" autocomplete="on">
+          <div class="field"><label>ชื่อผู้ใช้ <span class="req">*</span></label>
+            <input type="text" id="login-name" name="username" placeholder="ชื่อที่ตั้งไว้ในระบบ" autocomplete="username"></div>
+          <div class="field"><label>PIN <span class="req">*</span></label>
+            <input type="password" id="login-pin" name="password" placeholder="PIN 4-6 หลัก" autocomplete="current-password"></div>
+          <div id="login-err" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+          <button type="submit" class="btn btn-primary" style="width:100%">เข้าสู่ระบบ</button>
+        </form>
       </div>
       <p style="font-size:11px;color:var(--gray3);text-align:center;margin-top:12px">จัดการผู้ใช้ได้ใน Settings</p>
     </div>
@@ -776,11 +778,11 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       </div>
       <div style="border-top:1px solid var(--gray2);margin-top:16px;padding-top:14px">
         <p style="font-size:12px;font-weight:600;color:var(--gray4);margin-bottom:10px">🔑 เปลี่ยน PIN ของฉัน</p>
-        <div class="three-col">
-          <input type="password" id="pin-old" placeholder="PIN เดิม">
-          <input type="password" id="pin-new" placeholder="PIN ใหม่">
-          <button class="btn btn-outline btn-sm" onclick="changePin()">เปลี่ยน</button>
-        </div>
+        <form id="form-change-pin" class="three-col" onsubmit="event.preventDefault(); changePin();" autocomplete="on">
+          <input type="password" id="pin-old" name="old-password" placeholder="PIN เดิม" autocomplete="current-password">
+          <input type="password" id="pin-new" name="new-password" placeholder="PIN ใหม่" autocomplete="new-password">
+          <button type="submit" class="btn btn-outline btn-sm">เปลี่ยน</button>
+        </form>
       </div>
     </div>
   </div>
@@ -1529,6 +1531,15 @@ function formatWardForDisplay(s) {
     .replace(/วอร์ดหญิง/g, t('ward_label_female'));
 }
 
+/** ชื่ออาจารย์ OPD ตามภาษา UI — EN ใช้ supervisor_name_en ถ้ามี */
+function opdSupervisorDisplayName(oc) {
+  if (!oc) return '';
+  const en = String(oc.supervisor_name_en || '').trim();
+  const th = String(oc.supervisor_name || '').trim();
+  if (_lang === 'en') return en || th;
+  return th || en;
+}
+
 function applyLang() {
   // อัปเดต [data-i18n] elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -1994,7 +2005,7 @@ function openWardSchedule(wardCode) {
     const opdTags = opdRows.length ? opdRows.map(o => {
       const d = new Date(o.date);
       const past = d < today;
-      const supName = o.opd_mode === 'solo' ? t('solo_opd') : (o.supervisor_name || '—');
+      const supName = o.opd_mode === 'solo' ? t('solo_opd') : (opdSupervisorDisplayName(o) || '—');
       return `<div style="font-size:11px;${past ? 'color:var(--gray3);text-decoration:line-through' : 'color:var(--teal)'}">
         ${past ? '✅' : '📋'} ${dayLetter(d)} ${fmtD(d)} — ${supName}
       </div>`;
@@ -2056,10 +2067,18 @@ function printWardSchedule() {
   const { title, summary } = _getWardScheduleData();
   const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
-  function fmtD(d) { return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`; }
+  const daysENshort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function fmtD(d) {
+    if (_lang === 'en') {
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    return `${d.getDate()} ${monthsTH[d.getMonth()+1]}`;
+  }
   function fmtOPD(o) {
     const d = new Date(o.date);
-    return `${daysTH[d.getDay()]} ${fmtD(d)} — ${o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—')}`;
+    const dayPrefix = _lang === 'en' ? daysENshort[d.getDay()] : daysTH[d.getDay()];
+    const supName = o.opd_mode === 'solo' ? t('solo_opd') : (opdSupervisorDisplayName(o) || '—');
+    return `${dayPrefix} ${fmtD(d)} — ${supName}`;
   }
 
   const rows = _lastWardScheduleRows;
@@ -2121,7 +2140,7 @@ function downloadWardScheduleCSV() {
     const p1 = periods[0] ? `${fmtD(periods[0].r.start)} - ${fmtD(periods[0].r.end)}` : '';
     const p2 = periods[1] ? `${fmtD(periods[1].r.start)} - ${fmtD(periods[1].r.end)}` : '';
     const opdDates = opdRows.map(o => { const d = new Date(o.date); return `${daysTH[d.getDay()]} ${fmtD(d)}`; }).join(', ');
-    const opdSups  = opdRows.map(o => o.opd_mode === 'solo' ? 'ตรวจเอง' : (o.supervisor_name || '—')).join(', ');
+    const opdSups  = opdRows.map(o => o.opd_mode === 'solo' ? t('solo_opd') : (opdSupervisorDisplayName(o) || '—')).join(', ');
     return [e.name, e.level || '', e.from_hospital || '', p1, p2, opdDates, opdSups, statusText];
   });
 
@@ -2254,7 +2273,11 @@ function renderCalendar() {
     const entriesHtml = entries.length
       ? entries.map(e => {
           const isSolo = e.opd_mode === 'solo';
-          const supLabel = isSolo ? '🩺 ตรวจเอง' : (e.supervisor_name ? `👨‍⚕️ ${e.supervisor_name}` : '👨‍⚕️ (ยังไม่ระบุ)');
+          const naSup = _lang === 'en' ? '(Not specified)' : '(ยังไม่ระบุ)';
+          const supDisp = opdSupervisorDisplayName(e);
+          const supLabel = isSolo
+            ? `🩺 ${t('solo_opd')}`
+            : (supDisp ? `👨‍⚕️ ${supDisp}` : `👨‍⚕️ ${naSup}`);
           // นับ elective ในรายการนี้
           let eCount = 0;
           try { eCount = JSON.parse(e.elective_ids || '[]').length; } catch(_) {}
@@ -2406,7 +2429,7 @@ function printElectiveTable() {
     const opds = (opdByElective[e.id] || []).map(o => {
       const d = new Date(o.date);
       const dayShort = _lang === 'en' ? daysENpr[d.getDay()] : daysTH[d.getDay()];
-      const sup = o.opd_mode === 'solo' ? t('solo_opd') : (o.supervisor_name || '—');
+      const sup = o.opd_mode === 'solo' ? t('solo_opd') : (opdSupervisorDisplayName(o) || '—');
       return `${dayShort} ${fmtD(d)} — ${sup}`;
     }).join('<br>') || '—';
     return `<tr>
@@ -2489,7 +2512,7 @@ function downloadElectiveTableCSV() {
         return `${dayShort} ${fmtD(d)}`;
       })
       .join(', ');
-    const opdSups  = opds.map(o => (o.opd_mode === 'solo' ? t('solo_opd') : (o.supervisor_name || '—'))).join(', ');
+    const opdSups  = opds.map(o => (o.opd_mode === 'solo' ? t('solo_opd') : (opdSupervisorDisplayName(o) || '—'))).join(', ');
     return [
       e.name,
       e.from_hospital || '',
@@ -2547,7 +2570,7 @@ function buildOpdProfessorMonthSummaryModel(options = {}) {
       .map(id => state.electives.find(x => String(x.id) === String(id)))
       .filter(Boolean);
     const isSolo = slot.opd_mode === 'solo';
-    const supervisorDisp = isSolo ? soloLbl : ((slot.supervisor_name || '').trim() || naSup);
+    const supervisorDisp = isSolo ? soloLbl : (opdSupervisorDisplayName(slot) || naSup);
 
     const parts = electives.map(e => {
       const nm = electiveDisplayNameForSummary(e);
@@ -2938,8 +2961,11 @@ function renderElectiveTable() {
         const d = new Date(o.date);
         const dayName = _lang === 'en' ? daysEN[d.getDay()] : daysTH[d.getDay()];
         const passed = d < today;
+        const supLine = o.opd_mode === 'solo'
+          ? t('solo_opd')
+          : `${opdSupervisorDisplayName(o) || '—'} (${t('sit_with_sup')})`;
         return `<div style="font-size:11px;line-height:1.6;${passed ? 'text-decoration:line-through;color:var(--gray3)' : ''}">
-          ${passed ? '✅' : '📋'} ${dayName} ${fmtShort(o.date)} — ${o.supervisor_name || ''} (${o.opd_mode === 'solo' ? t('solo_opd') : t('sit_with_sup')})
+          ${passed ? '✅' : '📋'} ${dayName} ${fmtShort(o.date)} — ${supLine}
         </div>`;
       }).join('');
       if (opds.length > 5) {
@@ -3125,7 +3151,7 @@ function renderOPDDayList(dateStr) {
   } else {
     el.innerHTML = entries.map(e => {
       const isSolo = e.opd_mode === 'solo';
-      const title = isSolo ? 'ตรวจเอง' : (e.supervisor_name || '—');
+      const title = isSolo ? t('solo_opd') : (opdSupervisorDisplayName(e) || '—');
       // แยกรายชื่อ elective เป็น list
       let eIds = [];
       try { eIds = JSON.parse(e.elective_ids || '[]'); } catch(_) {}
@@ -3431,17 +3457,6 @@ async function loadManageData() {
 
   // Residents
   renderResidentList();
-}
-
-async function loadLineOaManageForm() {
-  try {
-    const res = await apiGet('action=line_oa_settings');
-    if (!res.success || !res.data) return;
-    const s = document.getElementById('line-oa-sheet-url');
-    const f = document.getElementById('line-oa-friend-url');
-    if (s) s.value = res.data.sheet_url || '';
-    if (f) f.value = res.data.add_friend_url || '';
-  } catch (e) { /* ignore */ }
 }
 
 function openLineOaSheet() {
@@ -4066,7 +4081,7 @@ function searchByDate(q) {
   out += '\n';
   for (const o of entries) {
     const isSolo = o.opd_mode === 'solo';
-    const supName = isSolo ? 'ตรวจเอง' : (o.supervisor_name || '—');
+    const supName = isSolo ? t('solo_opd') : (opdSupervisorDisplayName(o) || '—');
     out += `👨‍⚕️ อาจารย์ที่ออก OPD: ${supName}\n`;
     let eIds = [];
     try { eIds = JSON.parse(o.elective_ids || '[]'); } catch(_) {}
@@ -4330,6 +4345,8 @@ async function api(body, requireAuth = false) {
     body: JSON.stringify(body),
   });
   const data = await parseJsonSafe(res);
+  if (typeof data.status === 'undefined') data.status = res.status;
+  if (res.ok && typeof data.success === 'undefined') data.success = true;
   if (!res.ok && typeof data.success === 'undefined') {
     data.success = false;
     if (!data.error) data.error = `HTTP ${res.status}`;
@@ -4343,6 +4360,8 @@ async function apiGet(params) {
   const url = `${getWorkerUrl()}/api?${params}` + (state.token ? '' : '&public_view=1');
   const res = await fetch(url, { headers });
   const data = await parseJsonSafe(res);
+  if (typeof data.status === 'undefined') data.status = res.status;
+  if (res.ok && typeof data.success === 'undefined') data.success = true;
   if (!res.ok && typeof data.success === 'undefined') {
     data.success = false;
     if (!data.error) data.error = `HTTP ${res.status}`;
@@ -5420,6 +5439,10 @@ const DEFAULT_TEMPLATES_FRONTEND = {
     'Wishing you a joyful and rewarding elective at Siriraj Hospital and a wonderful time in Thailand 🩷',
 };
 
+const LINE_OA_DEFAULT_SHEET =
+  'https://docs.google.com/spreadsheets/d/13x5NRqZVQMG59u34pTxLSRx0i9akduFcdLUquB7BAPw/edit?gid=0#gid=0';
+const LINE_OA_DEFAULT_ADD_FRIEND = 'https://line.me/R/ti/p/@893tgcjb';
+
 async function openLineBotModal() {
   openModal('modal-linebot');
   await loadLineBotTemplates();
@@ -5474,20 +5497,31 @@ async function loadLineBotTemplates() {
     document.getElementById('tpl-en-opd-with-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_opd_calendar_line_with_en'];
     document.getElementById('tpl-en-closing-text').value = DEFAULT_TEMPLATES_FRONTEND['bot_elective_closing_en'];
   }
-  // โหลด settings
+  // โหลด settings (รวมลิงก์ LINE OA — ใช้ action=settings รองรับ Worker ที่ยังไม่มี GET line_oa_settings)
   try {
     const sRes = await apiGet('action=settings');
     if (sRes.data) {
       const pdfUrl = sRes.data.find(s => s.key === 'pdf_manual_url');
       const calUrl = sRes.data.find(s => s.key === 'elective_calendar_url');
       const groupId = sRes.data.find(s => s.key === 'line_group_id');
+      const loSheet = sRes.data.find(s => s.key === 'line_oa_sheet_url');
+      const loFriend = sRes.data.find(s => s.key === 'line_oa_add_friend_url');
       if (pdfUrl) document.getElementById('setting-pdf-url').value = pdfUrl.value || '';
       const calEl = document.getElementById('setting-calendar-url');
       if (calEl && calUrl) calEl.value = calUrl.value || '';
       if (groupId) document.getElementById('setting-group-id').value = groupId.value || '';
+      const sheetEl = document.getElementById('line-oa-sheet-url');
+      const friendEl = document.getElementById('line-oa-friend-url');
+      if (sheetEl) {
+        const v = loSheet && loSheet.value != null ? String(loSheet.value).trim() : '';
+        sheetEl.value = v || LINE_OA_DEFAULT_SHEET;
+      }
+      if (friendEl) {
+        const v = loFriend && loFriend.value != null ? String(loFriend.value).trim() : '';
+        friendEl.value = v || LINE_OA_DEFAULT_ADD_FRIEND;
+      }
     }
   } catch (e) { /* silent */ }
-  await loadLineOaManageForm();
 }
 
 async function saveLineBotTemplates() {
@@ -5519,19 +5553,30 @@ async function saveLineBotTemplates() {
     const loFriend = (document.getElementById('line-oa-friend-url')?.value || '').trim();
 
     const res = await api(
-      { action: 'save_templates', templates, pdf_manual_url: pdfUrl, elective_calendar_url: calUrl },
+      {
+        action: 'save_templates',
+        templates,
+        pdf_manual_url: pdfUrl,
+        elective_calendar_url: calUrl,
+        line_oa_sheet_url: loSheet,
+        line_oa_add_friend_url: loFriend,
+      },
       true
     );
-    if (!res.success) throw new Error(res.error || 'บันทึกไม่ได้');
+    if (res.success !== true) {
+      throw new Error(res.error || res.message || `บันทึกไม่ได้ (HTTP ${res.status || '?'})`);
+    }
 
-    const rLo = await api(
-      { action: 'save_line_oa_settings', line_oa: { sheet_url: loSheet, add_friend_url: loFriend } },
-      true
-    );
-    if (!rLo.success) throw new Error(rLo.error || 'บันทึก LINE OA ไม่ได้');
+    const verifyTpl = await apiGet('action=templates');
+    if (!verifyTpl.success || !Array.isArray(verifyTpl.data)) {
+      throw new Error(
+        verifyTpl.error ||
+          'บันทึกแล้วแต่โหลดยืนยันจากเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบ Worker URL และว่า deploy Worker แล้ว'
+      );
+    }
 
     closeModal('modal-linebot');
-    toast('บันทึก Template และลิงก์ LINE OA แล้ว ✓', 'success');
+    toast(`บันทึกแล้ว ✓ — โหลดยืนยันได้ ${verifyTpl.data.length} เทมเพลตจาก DB (รีเฟรชแท็บ Drizzle Studio เพื่อดูค่าล่าสุด)`, 'success');
 
     try {
       const pub = await apiGet('action=public_settings');
