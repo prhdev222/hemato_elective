@@ -910,11 +910,11 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
     <div class="cal-grid" id="cal-head">
       <div class="cal-head" data-i18n="day_mon">จันทร์</div>
       <div class="cal-head" data-i18n="day_tue">อังคาร</div>
-      <div class="cal-head">พุธ</div>
-      <div class="cal-head">พฤหัส</div>
-      <div class="cal-head">ศุกร์</div>
-      <div class="cal-head weekend">เสาร์</div>
-      <div class="cal-head weekend">อาทิตย์</div>
+      <div class="cal-head" data-i18n="day_wed">พุธ</div>
+      <div class="cal-head" data-i18n="day_thu">พฤหัส</div>
+      <div class="cal-head" data-i18n="day_fri">ศุกร์</div>
+      <div class="cal-head weekend" data-i18n="day_sat">เสาร์</div>
+      <div class="cal-head weekend" data-i18n="day_sun">อาทิตย์</div>
     </div>
     <div class="cal-grid" id="cal-body"></div>
   </div>
@@ -1359,6 +1359,7 @@ const _i18n = {
     status_done:    'จบแล้ว',
     status_rotating:'กำลัง round',
     opd_none:       'ยังไม่มีตาราง OPD',
+    opd_cell_count: (n) => `👥 ${n} คน`,
     ward_opd_in_month: 'OPD ที่มีในเดือนนี้',
     solo_opd:       'ตรวจเอง',
     sit_with_sup:   'นั่งกับ อ.',
@@ -1454,6 +1455,7 @@ const _i18n = {
     status_done:    'Completed',
     status_rotating:'On rotation',
     opd_none:       'No OPD scheduled',
+    opd_cell_count: (n) => `👥 ${n} elective${n !== 1 ? 's' : ''}`,
     ward_opd_in_month: 'OPD this month',
     solo_opd:       'Solo clinic',
     sit_with_sup:   'With supervisor',
@@ -1589,11 +1591,6 @@ function applyLang() {
     const key = el.getAttribute('data-i18n-ph');
     el.placeholder = t(key);
   });
-  // อัปเดต calendar day headers (cal-head ที่ไม่มี data-i18n)
-  const dayKeys = ['day_sun','day_mon','day_tue','day_wed','day_thu','day_fri','day_sat'];
-  document.querySelectorAll('.cal-head').forEach((el, i) => {
-    if (i < dayKeys.length) el.textContent = t(dayKeys[i]);
-  });
   // Chief cards + ward modal ปุ่ม (ค่า DB ยังเป็น วอร์ดชาย/วอร์ดหญิง)
   const hm = document.getElementById('chief-heading-male');
   if (hm) hm.textContent = '♂ ' + t('ward_label_male');
@@ -1610,9 +1607,10 @@ function applyLang() {
   // อัปเดต active lang button
   document.getElementById('lang-btn-th')?.classList.toggle('active', _lang === 'th');
   document.getElementById('lang-btn-en')?.classList.toggle('active', _lang === 'en');
-  // re-render เฉพาะส่วนที่มี label สถานะ (elective table + filter count)
+  // re-render ส่วนที่ผูกกับ _lang (ตาราง elective, chief, ปฏิทิน OPD)
   if (typeof renderElectiveTable === 'function') renderElectiveTable();
   if (typeof renderChiefs === 'function') renderChiefs();
+  if (typeof renderCalendar === 'function') renderCalendar();
 }
 
 function setLang(lang) {
@@ -2316,7 +2314,7 @@ function renderCalendar() {
           try { eCount = JSON.parse(e.elective_ids || '[]').length; } catch(_) {}
           return `<div class="opd-entry${isSolo ? ' solo' : ''}" style="cursor:pointer" onclick="event.stopPropagation();openOPDDay('${dateStr}')">
             <div class="opd-name${isSolo ? ' solo' : ''}">${supLabel}</div>
-            ${eCount ? `<div class="opd-sub">👥 ${eCount} คน</div>` : ''}
+            ${eCount ? `<div class="opd-sub">${t('opd_cell_count')(eCount)}</div>` : ''}
           </div>`;
         }).join('')
       : '';
