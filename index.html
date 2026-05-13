@@ -277,6 +277,20 @@ table.elective-table tr:hover td{background:var(--gray1)}
 #toast.success{background:var(--teal)}
 #toast.error{background:var(--red)}
 
+/* ── Hemato Bot mascot (bottom-right, dismissible) ── */
+.hemato-bot-float{position:fixed;right:14px;bottom:14px;z-index:9980;max-width:min(132px,32vw)}
+.hemato-bot-float__inner{position:relative;display:inline-block;line-height:0;border-radius:14px;overflow:visible;filter:drop-shadow(0 6px 16px rgba(27,58,107,.22));transition:transform .18s ease}
+.hemato-bot-float__inner:hover{transform:scale(1.03)}
+.hemato-bot-float__link{display:block;line-height:0;outline:none}
+.hemato-bot-float__link:focus-visible{box-shadow:0 0 0 3px rgba(36,86,164,.35);border-radius:12px}
+.hemato-bot-float__link img{display:block;width:min(118px,30vw);height:auto;max-height:min(200px,38vh);object-fit:contain}
+.hemato-bot-float__close{position:absolute;top:-6px;right:-6px;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--gray2);background:#fff;color:var(--gray5);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:var(--shadow);z-index:2;transition:background .15s,color .15s}
+.hemato-bot-float__close:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.hemato-bot-restore{display:none;position:fixed;right:12px;bottom:12px;z-index:9980;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--gray2);background:#fff;box-shadow:var(--shadow-md);cursor:pointer;font-size:20px;line-height:1;padding:0;transition:transform .15s,border-color .15s}
+.hemato-bot-restore:hover{border-color:var(--navy);transform:scale(1.06)}
+body.hemato-bot-hidden .hemato-bot-float{display:none!important}
+body.hemato-bot-hidden .hemato-bot-restore{display:flex!important}
+
 /* ── Loading ── */
 #loader{position:fixed;inset:0;background:rgba(255,255,255,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
 #loader.hidden{display:none}
@@ -1349,6 +1363,9 @@ const _i18n = {
     btn_print:      '🖨️ พิมพ์',
     btn_csv:        '⬇️ CSV',
     btn_close:      'ปิด',
+    hemato_bot_hide_title: 'ซ่อนไอคอน Hemato Bot',
+    hemato_bot_restore_title: 'แสดง Hemato Bot',
+    hemato_bot_aria: 'Hemato Bot — ลิงก์ไปหน้าถามตอบเกี่ยวกับ elective / OPD',
     linebot_activity_admin_label: 'กิจกรรมสาขาโลหิตวิทยา (แก้รายการบนเว็บ)',
     linebot_activity_admin_hint:
       'แก้รายการกิจกรรม ข้อความประกาศ (TH/EN) และลิงก์ Google Form ได้ที่เว็บ Admin — คนละระบบกับ HSOS Calendar',
@@ -1449,6 +1466,9 @@ const _i18n = {
     btn_print:      '🖨️ Print',
     btn_csv:        '⬇️ CSV',
     btn_close:      'Close',
+    hemato_bot_hide_title: 'Hide Hemato Bot icon',
+    hemato_bot_restore_title: 'Show Hemato Bot',
+    hemato_bot_aria: 'Hemato Bot — Q&A about elective schedule and OPD',
     linebot_activity_admin_label: 'Hematology elective activities (external admin)',
     linebot_activity_admin_hint:
       'Edit activities, notice banner (TH/EN), and Google Form links on the separate Admin site — not part of this HSOS calendar.',
@@ -1624,12 +1644,33 @@ function applyLang() {
   if (typeof renderElectiveTable === 'function') renderElectiveTable();
   if (typeof renderChiefs === 'function') renderChiefs();
   if (typeof renderCalendar === 'function') renderCalendar();
+  const hbf = document.getElementById('hemato-bot-float');
+  if (hbf) hbf.setAttribute('aria-label', t('hemato_bot_aria'));
+  const hbr = document.getElementById('hemato-bot-restore');
+  if (hbr) hbr.setAttribute('aria-label', t('hemato_bot_restore_title'));
+  const hbx = document.getElementById('hemato-bot-close');
+  if (hbx) hbx.setAttribute('aria-label', t('hemato_bot_hide_title'));
 }
 
 function setLang(lang) {
   _lang = lang;
   localStorage.setItem('hsos_lang', lang);
   applyLang();
+}
+
+const HEMATO_BOT_HIDDEN_KEY = 'hsos_hemato_bot_hidden';
+function applyHematoBotVisibility() {
+  const hidden = localStorage.getItem(HEMATO_BOT_HIDDEN_KEY) === '1';
+  document.body.classList.toggle('hemato-bot-hidden', hidden);
+}
+function hideHematoBotFloat(ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  localStorage.setItem(HEMATO_BOT_HIDDEN_KEY, '1');
+  applyHematoBotVisibility();
+}
+function showHematoBotFloat() {
+  localStorage.removeItem(HEMATO_BOT_HIDDEN_KEY);
+  applyHematoBotVisibility();
 }
 
 function toolbarCloseDropdowns() {
@@ -1649,6 +1690,9 @@ function toolbarToggleDropdown(id, ev) {
 // เรียกหลัง DOM load
 document.addEventListener('DOMContentLoaded', () => {
   applyLang();
+  applyHematoBotVisibility();
+  document.getElementById('hemato-bot-close')?.addEventListener('click', hideHematoBotFloat);
+  document.getElementById('hemato-bot-restore')?.addEventListener('click', showHematoBotFloat);
   document.addEventListener('click', e => {
     if (e.target.closest('#toolbar .toolbar-dropdown')) return;
     toolbarCloseDropdowns();
@@ -5773,6 +5817,16 @@ function switchLineBotTab(tabId) {
   <div class="footer-line">Built with ❤️ for Siriraj Hematology</div>
   <div class="footer-line">© 2026 Directed by <a href="mailto:uradev222@gmail.com">Uradev</a></div>
 </footer>
+
+<div id="hemato-bot-float" class="hemato-bot-float" role="complementary">
+  <div class="hemato-bot-float__inner">
+    <button type="button" class="hemato-bot-float__close" id="hemato-bot-close" data-i18n-title="hemato_bot_hide_title" title="ซ่อน">&times;</button>
+    <a href="https://hemato-bot.pages.dev/" target="_blank" rel="noopener noreferrer" class="hemato-bot-float__link" data-i18n-title="hemato_bot_aria" title="Hemato Bot">
+      <img src="./hemato_bot.png" alt="Hemato Bot" width="120" height="160" decoding="async" loading="lazy">
+    </a>
+  </div>
+</div>
+<button type="button" id="hemato-bot-restore" class="hemato-bot-restore" data-i18n-title="hemato_bot_restore_title" title="แสดง Hemato Bot" aria-label="แสดง Hemato Bot">🤖</button>
 
 </body>
 </html>
