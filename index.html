@@ -1737,6 +1737,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('hemato-bot-close')?.addEventListener('click', hideHematoBotFloat);
   document.getElementById('hemato-bot-restore')?.addEventListener('click', showHematoBotFloat);
   document.addEventListener('click', e => {
+    const btn = e.target.closest('.js-open-elective-detail');
+    if (!btn) return;
+    const id = btn.getAttribute('data-elective-id');
+    if (!id) return;
+    openElectiveDetail(id);
+  });
+  document.addEventListener('click', e => {
     if (e.target.closest('#toolbar .toolbar-dropdown')) return;
     toolbarCloseDropdowns();
   });
@@ -3147,7 +3154,7 @@ function renderElectiveTable() {
     const canEdit = state.user?.role !== 'viewer';
     return `<tr>
       <td>
-        <button type="button" class="link-btn" onclick="openElectiveDetail('${e.id}')">${e.name}</button>
+        <button type="button" class="link-btn js-open-elective-detail" data-elective-id="${e.id}">${electiveDisplayName(e)}</button>
         <br><span style="font-size:11px;color:var(--gray4)">${e.from_hospital||''}</span>
       </td>
       <td><span class="badge badge-blue">${e.level||'—'}</span></td>
@@ -4024,6 +4031,9 @@ function electiveDisplayForSearch(e, english) {
   if (english) return ne || e.name || '';
   return e.name || ne || '';
 }
+function electiveDisplayName(e) {
+  return electiveDisplayForSearch(e, _lang === 'en');
+}
 /**
  * @param {'auto'|'en'|'th'} langMode — auto = ตาม UI + ชื่อ elective; en/th บังคับ
  */
@@ -4543,10 +4553,21 @@ function closeLogoModal() { closeModal('modal-logo'); }
 function openElectiveDetail(id) {
   const e = state.electives.find(x => x.id === id);
   if (!e) { toast('ไม่พบข้อมูลแพทย์ Elective', 'error'); return; }
-  const text = buildElectivePreviewClient(e);
-  setText('modal-elective-detail-title', `🧑‍⚕️ ${electiveDisplayName(e)}`);
-  setText('elective-detail-text', text || '');
-  openModal('modal-elective-detail');
+  try {
+    const text = buildElectivePreviewClient(e);
+    setText('modal-elective-detail-title', `🧑‍⚕️ ${electiveDisplayName(e)}`);
+    setText('elective-detail-text', text || '');
+    openModal('modal-elective-detail');
+  } catch (err) {
+    console.error('openElectiveDetail failed:', err);
+    setText('modal-elective-detail-title', `🧑‍⚕️ ${electiveDisplayName(e)}`);
+    setText(
+      'elective-detail-text',
+      `${electiveDisplayName(e)}\n${e.level || '—'}\n${e.from_hospital || '—'}\n${e.date_range || '—'}`
+    );
+    openModal('modal-elective-detail');
+    toast('แสดงข้อมูลแบบย่อชั่วคราว', 'error');
+  }
 }
 
 function copyElectiveDetail() {
