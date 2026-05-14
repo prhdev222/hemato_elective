@@ -4319,7 +4319,12 @@ async function _doSearchAsync(q) {
 
     if (ep?.suggestions?.length) {
       const listText = ep.suggestions
-        .map((e, i) => `${i + 1}. ${e.name} (${e.level || '—'}) — ${e.date_range || '—'}`)
+        .map((e, i) => {
+          const displayName = useEnglishElectiveSearchMessage(e, null)
+            ? (String(e.name_en || '').trim() || e.name || '—')
+            : (e.name || String(e.name_en || '').trim() || '—');
+          return `${i + 1}. ${displayName} (${e.level || '—'}) — ${e.date_range || '—'}`;
+        })
         .join('\n');
       setText(
         'search-preview',
@@ -4392,8 +4397,8 @@ async function saveCalendarImage() {
     const chiefBar = document.createElement('div');
     chiefBar.style.cssText = 'background:#EBF2FF;padding:8px 18px;display:flex;gap:24px;font-size:12px;color:#1B3A6B;border-bottom:1px solid #ddd';
     chiefBar.innerHTML =
-      '<span>♂ <strong>' + escapeHtml(chiefResidentDisplayName(male)) + '</strong> · Supervise: ' + escapeHtml(superviseListDisplay(male.supervise_list)) + '</span>' +
-      '<span>♀ <strong>' + escapeHtml(chiefResidentDisplayName(female)) + '</strong> · Supervise: ' + escapeHtml(superviseListDisplay(female.supervise_list)) + '</span>';
+      '<span>♂ <strong>' + escapeHtml(chiefResidentDisplayName(male)) + '</strong> · ' + escapeHtml(t('supervised_by_label')) + ' ' + escapeHtml(superviseListDisplay(male.supervise_list)) + '</span>' +
+      '<span>♀ <strong>' + escapeHtml(chiefResidentDisplayName(female)) + '</strong> · ' + escapeHtml(t('supervised_by_label')) + ' ' + escapeHtml(superviseListDisplay(female.supervise_list)) + '</span>';
 
     // hint bar
     const hint = document.createElement('div');
@@ -4499,7 +4504,7 @@ function openElectiveDetail(id) {
   const e = state.electives.find(x => x.id === id);
   if (!e) { toast('ไม่พบข้อมูลแพทย์ Elective', 'error'); return; }
   const text = buildElectivePreviewClient(e);
-  setText('modal-elective-detail-title', `🧑‍⚕️ ${e.name}`);
+  setText('modal-elective-detail-title', `🧑‍⚕️ ${electiveDisplayName(e)}`);
   setText('elective-detail-text', text || '');
   openModal('modal-elective-detail');
 }

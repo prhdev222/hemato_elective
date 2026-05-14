@@ -227,7 +227,7 @@ function displayLineForEn(line) {
 
 async function buildChiefDetailEn(chief, db) {
   const detailTpl = await getTemplate('bot_elective_chief_detail_en', db);
-  const name = chief?.chief_name?.trim() || '—';
+  const name = await getChiefNameEn(chief, db);
   const lineRaw = String(chief?.chief_line_id || '').trim();
   let lineBlock = '';
   if (lineRaw) {
@@ -247,6 +247,25 @@ async function buildChiefDetailEn(chief, db) {
     line_block: lineBlock,
     attending_block: attendingBlock,
   });
+}
+
+async function getChiefNameEn(chief, db) {
+  const chiefName = String(chief?.chief_name || '').trim();
+  if (!chiefName) return '—';
+  if (/^[A-Za-z]/.test(chiefName)) return chiefName;
+  try {
+    const { rows } = await db.execute({
+      sql: `SELECT ifnull(name_en, '') AS name_en
+            FROM chief_residents
+            WHERE trim(name)=trim(?)
+            LIMIT 1`,
+      args: [chiefName],
+    });
+    const chiefNameEn = String(rows[0]?.name_en || '').trim();
+    return chiefNameEn || chiefName;
+  } catch {
+    return chiefName;
+  }
 }
 
 export async function buildElectiveOPDBlockEn(elective, db) {
