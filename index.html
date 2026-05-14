@@ -457,20 +457,32 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   .opd-sub{font-size:11px}
   .cal-add-btn{width:26px;height:26px;font-size:16px}
 
-  .elective-card-header{padding:12px;gap:8px;flex-wrap:wrap}
-  #elective-filter-bar{padding:8px 12px;gap:6px}
-  .elc-filter-btn{font-size:11px;padding:4px 10px}
-  .elective-card-header h3{font-size:16px}
-  table.elective-table{font-size:14px}
-  table.elective-table th{font-size:12px;padding:8px 6px}
-  table.elective-table td{padding:10px 6px}
-  .badge{font-size:12px}
+  .elective-card-header{padding:12px;gap:8px;flex-wrap:wrap;align-items:flex-start}
+  .elective-card-header h3{font-size:14px;line-height:1.35;flex:1 1 100%}
+  .elective-card-header > div:last-child{width:100%;justify-content:flex-start}
+  #completed-count{display:block;flex:1 1 100%;font-size:10px!important;line-height:1.35}
+  #elective-filter-bar{padding:8px 12px;gap:8px;align-items:flex-start}
+  #elective-filter-bar > div{width:100%}
+  #elective-filter-bar > div:last-child{margin-left:0!important}
+  #elective-filter-bar input[type=date]{min-width:0;flex:1 1 140px;font-size:12px!important;padding:6px 8px!important}
+  .elc-filter-btn{font-size:10px;padding:5px 9px;line-height:1.3}
+  table.elective-table{font-size:12px;line-height:1.45;table-layout:fixed}
+  table.elective-table th{font-size:10px;padding:7px 6px;letter-spacing:.02em;white-space:normal}
+  table.elective-table td{padding:8px 6px;overflow-wrap:anywhere;word-break:break-word}
+  table.elective-table td:nth-child(1){min-width:132px}
+  table.elective-table td:nth-child(3),
+  table.elective-table td:nth-child(4){min-width:150px}
+  table.elective-table .link-btn{display:inline-block;white-space:normal;line-height:1.35}
+  .badge{font-size:10px}
   .empty-state{font-size:15px;padding:24px 12px}
+  body.font-adjust-enabled .elective-card-header h3{--base-font-size:13px}
+  body.font-adjust-enabled table.elective-table{--base-font-size:12px}
+  body.font-adjust-enabled table.elective-table th{--base-font-size:10px}
+  body.font-adjust-enabled .badge{--base-font-size:10px}
 }
 </style>
 <!-- LIFF SDK -->
-<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script defer charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 
@@ -1789,17 +1801,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   const urlInput = document.getElementById('backend-url');
   if (urlInput) urlInput.value = getWorkerUrl();
 
-  // โหลด public_settings ก่อน (รวม liff_id จาก Worker env)
-  try {
-    const pub = await apiGet('action=public_settings');
-    if (pub?.success && Array.isArray(pub.data)) state.publicSettings = pub.data;
-  } catch (e) { /* offline / CORS → ใช้ flow เดิม */ }
-  applyManualLink();
-
-  // ── ลอง init LIFF ก่อน ──
-  const liffReady = await tryInitLiff();
-  if (liffReady) return; // LIFF จัดการ login ให้แล้ว
-
   // ── เปิดผ่าน browser ปกติ ──
   const saved = sessionStorage.getItem('hsos_token');
   const savedUser = sessionStorage.getItem('hsos_user');
@@ -1815,7 +1816,26 @@ window.addEventListener('DOMContentLoaded', async () => {
     openModal('modal-login');
     hide('loader');
   }
+
+  bootstrapPublicSettingsAndLiff();
 });
+
+async function bootstrapPublicSettingsAndLiff() {
+  try {
+    const pub = await apiGet('action=public_settings');
+    if (pub?.success && Array.isArray(pub.data)) {
+      state.publicSettings = pub.data;
+      applyManualLink();
+    }
+  } catch (e) { /* offline / CORS → ใช้ flow เดิม */ }
+
+  if (state.user) return;
+  try {
+    await tryInitLiff();
+  } catch (e) {
+    console.warn('LIFF bootstrap error:', e);
+  }
+}
 
 // ── LIFF init & login ────────────────────────────────────────
 async function tryInitLiff() {
@@ -1948,6 +1968,9 @@ async function loadPage() {
   show('loader');
   try {
     const m = state.month;
+    const publicSettingsReq = state.publicSettings.length
+      ? Promise.resolve({ success: true, data: state.publicSettings })
+      : apiGet(`action=public_settings`);
     // ใช้ allSettled เพื่อให้แต่ละ request fail แยกกันได้โดยไม่หยุดทั้งหมด
     const [calRes, supRes, elcRes, chiefRes, holRes, pubSetRes, crRes] = await Promise.allSettled([
       apiGet(`action=calendar&month=${m}`),
@@ -1955,7 +1978,7 @@ async function loadPage() {
       apiGet(`action=electives`),
       apiGet(`action=chiefs&month=${m}`),
       apiGet(`action=holidays&month=${m}`),
-      apiGet(`action=public_settings`),
+      publicSettingsReq,
       apiGet(`action=chief_residents`),
     ]);
     state.calendar    = calRes.status === 'fulfilled'   ? (calRes.value.data   || []) : [];
@@ -4382,6 +4405,8 @@ async function saveCalendarImage() {
   toast('กำลังสร้างรูป...', '');
 
   try {
+    const html2canvas = await ensureHtml2Canvas();
+
     // เพิ่ม header ชั่วคราวบนรูป
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'background:#fff;padding:0;font-family:Sarabun,sans-serif;display:inline-block;width:' + calCard.offsetWidth + 'px';
@@ -4447,6 +4472,21 @@ async function saveCalendarImage() {
   } catch (err) {
     toast('บันทึกรูปไม่ได้: ' + err.message, 'error');
   }
+}
+
+let _html2canvasPromise = null;
+function ensureHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (_html2canvasPromise) return _html2canvasPromise;
+  _html2canvasPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.async = true;
+    script.onload = () => resolve(window.html2canvas);
+    script.onerror = () => reject(new Error('โหลดเครื่องมือสร้างรูปไม่สำเร็จ'));
+    document.head.appendChild(script);
+  });
+  return _html2canvasPromise;
 }
 
 // ── API helpers ───────────────────────────────────────────────
