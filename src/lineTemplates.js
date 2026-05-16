@@ -54,7 +54,7 @@ export const DEFAULT_TEMPLATES = {
     '🏥 Ward: {{ward2_en}}\n' +
     '{{chief_detail2}}\n',
   bot_elective_chief_detail_en:
-    '👑 Chief: {{chief_name}}{{line_block}}{{attending_block}}',
+    '👑 Chief: {{chief_name}}{{line_block}}',
   bot_elective_chief_line_en:
     '\n📱 LINE ID: {{line_display}}\n(Please add LINE to coordinate the ward round time and location.)',
   bot_elective_chief_attending_en:
@@ -235,17 +235,10 @@ async function buildChiefDetailEn(chief, db) {
       line_display: displayLineForEn(lineRaw),
     });
   }
-  const sup = String(chief?.supervise_list || '').trim();
-  let attendingBlock = '';
-  if (sup) {
-    attendingBlock = fill(await getTemplate('bot_elective_chief_attending_en', db), {
-      supervise_list: sup,
-    });
-  }
   return fill(detailTpl, {
     chief_name: name,
     line_block: lineBlock,
-    attending_block: attendingBlock,
+    attending_block: '',
   });
 }
 
