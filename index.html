@@ -645,18 +645,22 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <div class="field"><label>🌐 ชื่อภาษาอังกฤษ <span style="font-weight:400;color:var(--gray4)">(ถ้ามี)</span></label>
         <input type="text" id="el-name-en" placeholder="e.g. John Smith" style="width:100%"></div>
       <div class="field"><label>📊 ระดับ</label>
-        <select id="el-level">
+        <select id="el-level" onchange="toggleElectiveLevelCustom(this.value === '__custom__')">
           <option value="">— เลือก —</option>
           <option value="นศพ.ปี3">นศพ.ปี3</option>
           <option value="นศพ.ปี4">นศพ.ปี4</option>
           <option value="นศพ.ปี5">นศพ.ปี5</option>
           <option value="Extern">Extern</option>
           <option value="Intern">Intern</option>
+          <option value="Medical student">Medical student</option>
           <option value="แพทย์พี่เลี้ยง">แพทย์พี่เลี้ยง</option>
           <option value="Resident-Med">Resident-Med</option>
           <option value="Resident-Hemato">Resident-Hemato</option>
           <option value="Fellow-Hemato">Fellow-Hemato</option>
-        </select></div>
+          <option value="Fellow non-hemato">Fellow non-hemato</option>
+          <option value="__custom__">อื่น ๆ (กรอกเอง)</option>
+        </select>
+        <input type="text" id="el-level-custom" placeholder="กรอกระดับเพิ่มเติม" style="display:none;margin-top:8px"></div>
       <div class="field">
         <label>📅 ช่วงที่ 1 <span class="req">*</span></label>
         <div style="display:flex;gap:8px;margin-bottom:6px">
@@ -3391,6 +3395,8 @@ function openAddElective() {
   document.getElementById('el-id').value = '';
   ['el-first','el-last','el-name','el-name-en','el-from','el-ward1','el-ward2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('el-level').value = '';
+  document.getElementById('el-level-custom').value = '';
+  toggleElectiveLevelCustom(false);
   ['el-start1','el-end1','el-start2','el-end2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('el-ward1').value = 'วอร์ดชาย';
   document.getElementById('el-ward2').value = 'วอร์ดหญิง';
@@ -3412,7 +3418,7 @@ function openEditElective(id) {
   document.getElementById('el-name').value  = e.name || '';
   document.getElementById('el-name-en').value = e.name_en || '';
   document.getElementById('el-from').value = e.from_hospital || '';
-  document.getElementById('el-level').value = e.level || '';
+  setElectiveLevelValue(e.level || '');
   const r1 = parseRangeToInputs(e.date_range);
   document.getElementById('el-start1').value = r1.start;
   document.getElementById('el-end1').value   = r1.end;
@@ -3442,13 +3448,19 @@ async function saveElective() {
   }
   const name = `${first} ${last}`.replace(/\s+/g,' ').trim();
   document.getElementById('el-name').value = name;
+  const level = getElectiveLevelValue();
+  if (document.getElementById('el-level')?.value === '__custom__' && !level) {
+    toast('กรุณากรอกระดับเพิ่มเติม','error');
+    if (btn) { btn.dataset.busy='0'; btn.disabled=false; btn.textContent='💾 บันทึก'; }
+    return;
+  }
   const s1 = val('el-start1'), e1 = val('el-end1');
   if (!s1 || !e1) { toast('กรุณาเลือกช่วงที่ 1','error'); if (btn) { btn.dataset.busy='0'; btn.disabled=false; btn.textContent='💾 บันทึก'; } return; }
   const data = {
     id:           val('el-id') || undefined,
     name,
     from_hospital: val('el-from'),
-    level:        val('el-level'),
+    level,
     date_range:   s1 && e1 ? `${s1} ถึง ${e1}` : '',
     ward:         document.getElementById('el-ward1').value,
     date_range2:  (val('el-start2') && val('el-end2')) ? `${val('el-start2')} ถึง ${val('el-end2')}` : '',
@@ -3483,6 +3495,37 @@ function splitFullName(full) {
   const parts = s.split(' ');
   if (parts.length === 1) return { first: parts[0], last: '' };
   return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
+function toggleElectiveLevelCustom(showCustom) {
+  const customInput = document.getElementById('el-level-custom');
+  if (!customInput) return;
+  customInput.style.display = showCustom ? '' : 'none';
+  if (!showCustom) customInput.value = '';
+}
+
+function setElectiveLevelValue(level) {
+  const select = document.getElementById('el-level');
+  const customInput = document.getElementById('el-level-custom');
+  if (!select || !customInput) return;
+  const normalized = String(level || '').trim();
+  const hasOption = Array.from(select.options).some(opt => opt.value === normalized);
+  if (normalized && !hasOption) {
+    select.value = '__custom__';
+    customInput.value = normalized;
+    toggleElectiveLevelCustom(true);
+    return;
+  }
+  select.value = normalized;
+  toggleElectiveLevelCustom(select.value === '__custom__');
+}
+
+function getElectiveLevelValue() {
+  const select = document.getElementById('el-level');
+  const customInput = document.getElementById('el-level-custom');
+  if (!select) return '';
+  if (select.value === '__custom__') return String(customInput?.value || '').trim();
+  return String(select.value || '').trim();
 }
 
 async function softDeleteElective() {
