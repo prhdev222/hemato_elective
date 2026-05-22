@@ -750,10 +750,15 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
       <!-- Archive tab -->
       <div class="tab-panel" id="tab-archive">
         <p style="font-size:12px;color:var(--gray4);margin-bottom:12px">เก็บสถิติ แล้ว Hard Delete ข้อมูล Elective + OPD ของเดือนที่เลือก เพื่อประหยัดพื้นที่ Turso</p>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
           <label style="font-size:13px;font-weight:600;white-space:nowrap">เลือกเดือน:</label>
-          <input type="month" id="archive-month" style="flex:1;padding:6px 10px">
+          <input type="month" id="archive-month" style="flex:1;min-width:180px;padding:6px 10px">
+          <select id="archive-year" style="padding:6px 10px;min-width:100px"></select>
+          <select id="archive-month-select" style="padding:6px 10px;min-width:100px"></select>
           <button class="btn btn-outline btn-sm" onclick="previewArchive()">🔍 ดูตัวอย่าง</button>
+        </div>
+        <div style="font-size:11px;color:var(--gray3);margin-bottom:16px">
+          หากมือถือหรือ LINE browser ไม่แสดงปฏิทิน ให้เลือกจาก dropdown ปี/เดือนแทนได้
         </div>
         <div id="archive-preview" style="display:none;background:var(--gray1);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
           <div id="archive-preview-content"></div>
@@ -1807,6 +1812,7 @@ function getLiffIdFromPublicSettings() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   applyFontSizePreference(localStorage.getItem(FONT_SIZE_STORAGE_KEY) || 'md');
+  initArchiveMonthControls();
 
   // เติมค่า backend url
   const urlInput = document.getElementById('backend-url');
@@ -4641,6 +4647,59 @@ function setText(id, t)  { const el = document.getElementById(id); if(el) el.tex
 function show(id)        { const el = document.getElementById(id)||document.querySelector('.'+id); if(el) el.style.display = id === 'search-result' ? 'block' : ''; }
 function hide(id)        { const el = document.getElementById(id)||document.querySelector('.'+id); if(el) el.style.display='none'; }
 function showAll(sel)    { document.querySelectorAll(sel).forEach(e => e.style.display=''); }
+function getArchiveTargetMonth() {
+  const monthInput = document.getElementById('archive-month');
+  const yearSel = document.getElementById('archive-year');
+  const monthSel = document.getElementById('archive-month-select');
+  const inputValue = monthInput?.value?.trim() || '';
+  if (inputValue) return inputValue;
+  const y = yearSel?.value || '';
+  const m = monthSel?.value || '';
+  return y && m ? `${y}-${m}` : '';
+}
+function setArchiveTargetMonth(monthStr) {
+  if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) return;
+  const monthInput = document.getElementById('archive-month');
+  const yearSel = document.getElementById('archive-year');
+  const monthSel = document.getElementById('archive-month-select');
+  if (monthInput) monthInput.value = monthStr;
+  if (yearSel) yearSel.value = monthStr.slice(0, 4);
+  if (monthSel) monthSel.value = monthStr.slice(5, 7);
+}
+function initArchiveMonthControls() {
+  const monthInput = document.getElementById('archive-month');
+  const yearSel = document.getElementById('archive-year');
+  const monthSel = document.getElementById('archive-month-select');
+  if (!monthInput || !yearSel || !monthSel) return;
+
+  const currentMonth = currentMonthStr();
+  const currentYear = parseInt(currentMonth.slice(0, 4), 10);
+  const monthLabelsTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+  yearSel.innerHTML = Array.from({ length: 8 }, (_, idx) => {
+    const y = currentYear + 1 - idx;
+    return `<option value="${y}">${y + 543}</option>`;
+  }).join('');
+  monthSel.innerHTML = Array.from({ length: 12 }, (_, idx) => {
+    const m = String(idx + 1).padStart(2, '0');
+    return `<option value="${m}">${monthLabelsTH[idx]}</option>`;
+  }).join('');
+
+  const syncFromInput = () => {
+    if (/^\d{4}-\d{2}$/.test(monthInput.value)) setArchiveTargetMonth(monthInput.value);
+  };
+  const syncFromSelects = () => {
+    const y = yearSel.value;
+    const m = monthSel.value;
+    if (y && m) monthInput.value = `${y}-${m}`;
+  };
+
+  monthInput.addEventListener('change', syncFromInput);
+  yearSel.addEventListener('change', syncFromSelects);
+  monthSel.addEventListener('change', syncFromSelects);
+
+  setArchiveTargetMonth(monthInput.value || currentMonth);
+}
 
 function toast(msg, type='') {
   const t = document.getElementById('toast');
@@ -4944,7 +5003,7 @@ async function removeHoliday(id) {
 
 // ── Archive & Stats ──────────────────────────────────────────
 async function previewArchive() {
-  const month = val('archive-month');
+  const month = getArchiveTargetMonth();
   if (!month) { toast('เลือกเดือนก่อน','error'); return; }
   try {
     const res = await apiGet(`action=archive_preview&target_month=${month}`);
@@ -4965,7 +5024,7 @@ async function previewArchive() {
 }
 
 async function executeArchiveDelete() {
-  const month = val('archive-month');
+  const month = getArchiveTargetMonth();
   if (!month) return;
   const monthLabel = formatMonthLabel(month);
   if (!confirm(`⚠️ ยืนยันลบ Elective + OPD ของเดือน ${monthLabel}?\n\nระบบจะบันทึกสถิติไว้ก่อนลบ\nการลบนี้กู้คืนไม่ได้!`)) return;

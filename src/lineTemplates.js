@@ -206,6 +206,43 @@ function parseElectiveRangeDates(rangeText) {
   return { start: new Date(m[1]), end: new Date(m[2]) };
 }
 
+function monthFromRangeStart(rangeText) {
+  const s = String(rangeText || '').trim();
+  const m = s.match(/(\d{4}-\d{2})-\d{2}\s*(?:ถึง|to|-)\s*\d{4}-\d{2}-\d{2}/);
+  return m ? m[1] : '';
+}
+
+async function getChiefForWardByMonth(db, wardCode, monthYyyyMm) {
+  if (!wardCode || !monthYyyyMm) return null;
+  const chiefs = await getChiefsForMonth(db, monthYyyyMm);
+  return chiefs[wardCode] || null;
+}
+
+async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = null) {
+  const ward1Code = wardToCodeForElective(elective?.ward);
+  const ward2Code = wardToCodeForElective(elective?.ward2);
+
+  if (chiefMonthYyyyMm) {
+    const chiefs = await getChiefsForMonth(db, chiefMonthYyyyMm);
+    return {
+      c1: ward1Code ? chiefs[ward1Code] : null,
+      c2: ward2Code ? chiefs[ward2Code] : null,
+    };
+  }
+
+  const fallbackMonth = new Date()
+    .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
+    .slice(0, 7);
+  const month1 = monthFromRangeStart(elective?.date_range) || fallbackMonth;
+  const month2 = monthFromRangeStart(elective?.date_range2) || month1 || fallbackMonth;
+
+  const [c1, c2] = await Promise.all([
+    getChiefForWardByMonth(db, ward1Code, month1),
+    getChiefForWardByMonth(db, ward2Code, month2),
+  ]);
+  return { c1, c2 };
+}
+
 function formatEnglishElectiveRange(rangeText) {
   const r = parseElectiveRangeDates(rangeText);
   if (!r || isNaN(r.start.getTime()) || isNaN(r.end.getTime())) return '(Not specified)';
@@ -298,14 +335,7 @@ export async function buildElectiveOPDBlockEn(elective, db) {
 }
 
 async function buildElectiveReplyMessageEn(elective, db, chiefMonthYyyyMm = null) {
-  const month =
-    chiefMonthYyyyMm ||
-    new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
-  const chiefs = await getChiefsForMonth(db, month);
-  const w1 = wardToCodeForElective(elective.ward);
-  const w2 = wardToCodeForElective(elective.ward2);
-  const c1 = w1 ? chiefs[w1] : null;
-  const c2 = w2 ? chiefs[w2] : null;
+  const { c1, c2 } = await resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm);
 
   const displayName =
     String(elective.name_en || '').trim() || String(elective.name || '').trim() || '—';
@@ -350,7 +380,7 @@ async function buildElectiveReplyMessageEn(elective, db, chiefMonthYyyyMm = null
 /**
  * @param {object} elective row from electives
  * @param {object} db
- * @param {string|null} chiefMonthYyyyMm เดือนของ Chief ในปฏิทิน (เช่น จาก state.month) — ถ้า null ใช้เดือนปัจจุบันตาม Asia/Bangkok
+ * @param {string|null} chiefMonthYyyyMm เดือนของ Chief ในปฏิทิน (เช่น จาก state.month) — ถ้า null ใช้เดือนเริ่มของแต่ละช่วง elective
  * @param {string} userQueryText ข้อความที่ผู้ใช้พิมพ์ (LINE / preview) — ขึ้นต้นด้วย A–Z จะเลือกเทมเพลตภาษาอังกฤษ
  */
 export async function buildElectiveReplyMessage(elective, db, chiefMonthYyyyMm = null, userQueryText = '') {
@@ -358,10 +388,6 @@ export async function buildElectiveReplyMessage(elective, db, chiefMonthYyyyMm =
     return buildElectiveReplyMessageEn(elective, db, chiefMonthYyyyMm);
   }
   const tpl = await getTemplate('bot_elective_reply', db);
-  const month =
-    chiefMonthYyyyMm ||
-    new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
-  const chiefs = await getChiefsForMonth(db, month);
 
   const fmtLine = line => {
     const s = String(line || '').trim();
@@ -369,10 +395,7 @@ export async function buildElectiveReplyMessage(elective, db, chiefMonthYyyyMm =
     return s.startsWith('@') || s.startsWith('http') ? s : `@${s}`;
   };
 
-  const ward1Code = wardToCodeForElective(elective.ward);
-  const ward2Code = wardToCodeForElective(elective.ward2);
-  const c1 = ward1Code ? chiefs[ward1Code] : null;
-  const c2 = ward2Code ? chiefs[ward2Code] : null;
+  const { c1, c2 } = await resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm);
 
   const chief1Line = fmtLine(c1?.chief_line_id);
   const chief2Line = fmtLine(c2?.chief_line_id);
