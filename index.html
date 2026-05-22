@@ -4334,8 +4334,28 @@ async function _doSearchAsync(q) {
     return;
   }
 
+  // ── พิมพ์ขึ้นต้นด้วย A–Z: จับจาก name หรือ name_en แล้วตอบฝั่ง client เป็น EN ─────────
+  const isLatinQuery = /^[A-Za-z]/.test(trimmed);
+  if (isLatinQuery) {
+    const qLow = trimmed.toLowerCase();
+    const enMatches = (state.electives || []).filter(e => {
+      if (e.status === 'deleted') return false;
+      const ne = (e.name_en || '').toLowerCase();
+      const n = (e.name || '').toLowerCase();
+      return ne.includes(qLow) || n.includes(qLow);
+    });
+    if (enMatches.length) {
+      const sep = '\n\n────────\n\n';
+      const lines = enMatches.map(e => buildElectiveSearchMessage(e, 'en')).join(sep);
+      showElectiveSearchResult(lines, enMatches.length === 1 ? enMatches[0].id : null);
+      return;
+    }
+  }
+
   try {
-    const res = await apiGet(`action=elective_preview&q=${encodeURIComponent(trimmed)}`);
+    const res = await apiGet(
+      `action=elective_preview&q=${encodeURIComponent(trimmed)}&month=${encodeURIComponent(state.month)}`
+    );
     const unk = typeof res?.error === 'string' &&
       (/unknown action/i.test(res.error) || /unauthoriz/i.test(res.error));
     if (res.success === false && unk) {
@@ -4382,7 +4402,11 @@ async function _doSearchAsync(q) {
 
     if (ep?.match === true && ep.text) {
       const el = ep.elective;
-      setText('search-preview', ep.text);
+      let previewText = ep.text;
+      if (el && useEnglishElectiveSearchMessage(el, null)) {
+        previewText = buildElectiveSearchMessage(el, 'auto');
+      }
+      setText('search-preview', previewText);
       box.setAttribute('data-elective-id', el?.id || '');
       box.removeAttribute('data-doctor-id');
       show('search-result');
