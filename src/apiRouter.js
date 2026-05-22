@@ -620,39 +620,30 @@ async function getElectiveStats(db) {
   const { rows } = await db.execute(`SELECT * FROM elective_stats ORDER BY month DESC LIMIT 24`);
   return rows;
 }
-/** วันสุดท้ายของเดือน YYYY-MM (เดือน 1–12 จากสตริง ไม่ใช่ month index 0-based) */
-function endOfMonthFromYyyyMm(yyyyMm) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(yyyyMm || '').trim());
-  if (!m) return null;
-  const ty = Number(m[1]);
-  const tm = Number(m[2]);
-  if (tm < 1 || tm > 12) return null;
-  return new Date(ty, tm, 0);
+function electiveEndsInMonth(e, yyyyMm) {
+  const r = parseDateRange(e.date_range);
+  const r2 = parseDateRange(e.date_range2);
+  const lastEnd = Math.max(r?.end?.getTime() || 0, r2?.end?.getTime() || 0);
+  if (!lastEnd) return false;
+  const endYm = new Date(lastEnd).toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
+  return endYm === yyyyMm;
 }
 
 async function archivePreview(targetMonth, db) {
-  if (!targetMonth) return { count: 0, electives: [] };
-  const mEnd = endOfMonthFromYyyyMm(targetMonth);
-  if (!mEnd) return { count: 0, electives: [] };
+  const month = String(targetMonth || '').trim();
+  if (!/^(\d{4})-(\d{2})$/.test(month)) return { count: 0, electives: [] };
   const { rows } = await db.execute(`SELECT id, name, level, from_hospital, date_range, date_range2 FROM electives`);
-  const matched = rows.filter(e => {
-    const r = parseDateRange(e.date_range);
-    const r2 = parseDateRange(e.date_range2);
-    return (r && r.end <= mEnd) || (r2 && r2.end <= mEnd);
-  });
+  const matched = rows.filter(e => electiveEndsInMonth(e, month));
   return { count: matched.length, electives: matched };
 }
 async function archiveAndDeleteMonth(targetMonth, db) {
-  if (!targetMonth) return { success: false, error: 'ไม่ได้ระบุเดือน' };
-  const mEnd = endOfMonthFromYyyyMm(targetMonth);
-  if (!mEnd) return { success: false, error: 'รูปแบบเดือนไม่ถูกต้อง (ใช้ YYYY-MM)' };
+  const month = String(targetMonth || '').trim();
+  if (!month) return { success: false, error: 'ไม่ได้ระบุเดือน' };
+  if (!/^(\d{4})-(\d{2})$/.test(month)) {
+    return { success: false, error: 'รูปแบบเดือนไม่ถูกต้อง (ใช้ YYYY-MM)' };
+  }
   const { rows: electives } = await db.execute(`SELECT * FROM electives`);
-  const toArchive = electives.filter(e => {
-    const r = parseDateRange(e.date_range);
-    const r2 = parseDateRange(e.date_range2);
-    const lastEnd = Math.max(r ? r.end.getTime() : 0, r2 ? r2.end.getTime() : 0);
-    return lastEnd > 0 && new Date(lastEnd) <= mEnd;
-  });
+  const toArchive = electives.filter(e => electiveEndsInMonth(e, month));
   if (!toArchive.length) return { success: true, deleted: 0, message: 'ไม่มี Elective ที่สิ้นสุดในเดือนนี้' };
   const byLevel = {}; const byHospital = {};
   toArchive.forEach(e => {
@@ -665,7 +656,7 @@ async function archiveAndDeleteMonth(targetMonth, db) {
           ON CONFLICT(month) DO UPDATE SET
           total=total+excluded.total, by_level=excluded.by_level,
           by_hospital=excluded.by_hospital, archived_at=excluded.archived_at`,
-    args: [`ES_${targetMonth}`, targetMonth, toArchive.length, JSON.stringify(byLevel), JSON.stringify(byHospital)],
+    args: [`ES_${month}`, month, toArchive.length, JSON.stringify(byLevel), JSON.stringify(byHospital)],
   });
   for (const e of toArchive) {
     await db.execute({ sql:`DELETE FROM opd_calendar WHERE elective_ids LIKE ?`, args:[`%${e.id}%`] });
@@ -674,11 +665,12 @@ async function archiveAndDeleteMonth(targetMonth, db) {
   return { success: true, deleted: toArchive.length, stats_saved: true };
 }
 function parseDateRange(str) {
-  if (!str) return null;
-  const parts = str.split(/\s*(?:ถึง|to|-)\s*/);
-  if (parts.length < 2) return null;
-  const start = new Date(parts[0].trim());
-  const end = new Date(parts[1].trim());
-  if (isNaN(start) || isNaN(end)) return null;
+  const s = String(str || '').trim();
+  if (!s) return null;
+  const m = s.match(/(\d{4}-\d{2}-\d{2})\s*(?:ถึง|to|-)\s*(\d{4}-\d{2}-\d{2})/);
+  if (!m) return null;
+  const start = new Date(`${m[1]}T12:00:00`);
+  const end = new Date(`${m[2]}T12:00:00`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
   return { start, end };
 }
