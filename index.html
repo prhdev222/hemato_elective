@@ -4690,15 +4690,30 @@ function setText(id, t)  { const el = document.getElementById(id); if(el) el.tex
 function show(id)        { const el = document.getElementById(id)||document.querySelector('.'+id); if(el) el.style.display = id === 'search-result' ? 'block' : ''; }
 function hide(id)        { const el = document.getElementById(id)||document.querySelector('.'+id); if(el) el.style.display='none'; }
 function showAll(sel)    { document.querySelectorAll(sel).forEach(e => e.style.display=''); }
+/** ค.ศ. YYYY + เดือน 1–12 → "YYYY-MM" (ไม่ใช้ Date — กัน off-by-one ของ month index) */
+function toArchiveMonthStr(ceYear, month1to12) {
+  const y = parseInt(ceYear, 10);
+  const m = parseInt(month1to12, 10);
+  if (!y || m < 1 || m > 12) return '';
+  const ce = y >= 2400 ? y - 543 : y;
+  return `${ce}-${String(m).padStart(2, '0')}`;
+}
 function getArchiveTargetMonth() {
   const monthInput = document.getElementById('archive-month');
   const yearSel = document.getElementById('archive-year');
   const monthSel = document.getElementById('archive-month-select');
-  const inputValue = monthInput?.value?.trim() || '';
-  if (inputValue) return inputValue;
   const y = yearSel?.value || '';
   const m = monthSel?.value || '';
-  return y && m ? `${y}-${m}` : '';
+  if (y && m) {
+    const fromSelects = toArchiveMonthStr(y, m);
+    if (fromSelects) {
+      if (monthInput) monthInput.value = fromSelects;
+      return fromSelects;
+    }
+  }
+  const inputValue = monthInput?.value?.trim() || '';
+  if (/^\d{4}-\d{2}$/.test(inputValue)) return inputValue;
+  return '';
 }
 function setArchiveTargetMonth(monthStr) {
   if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) return;
@@ -4732,9 +4747,8 @@ function initArchiveMonthControls() {
     if (/^\d{4}-\d{2}$/.test(monthInput.value)) setArchiveTargetMonth(monthInput.value);
   };
   const syncFromSelects = () => {
-    const y = yearSel.value;
-    const m = monthSel.value;
-    if (y && m) monthInput.value = `${y}-${m}`;
+    const built = toArchiveMonthStr(yearSel.value, monthSel.value);
+    if (built && monthInput) monthInput.value = built;
   };
 
   monthInput.addEventListener('change', syncFromInput);
@@ -5052,14 +5066,15 @@ async function previewArchive() {
     const res = await apiGet(`action=archive_preview&target_month=${month}`);
     const d = res.data || { count:0, electives:[] };
     const el = document.getElementById('archive-preview-content');
+    const monthHdr = `<p style="font-size:12px;color:var(--gray4);margin-bottom:8px">เดือนเป้าหมาย: <strong>${formatMonthLabel(month)}</strong> (${month})</p>`;
     if (d.count === 0) {
-      el.innerHTML = '<p style="font-size:13px;color:var(--gray4)">ไม่มี Elective ที่สิ้นสุดในเดือนนี้</p>';
+      el.innerHTML = monthHdr + '<p style="font-size:13px;color:var(--gray4)">ไม่มี Elective ที่สิ้นสุดในเดือนนี้</p>';
       hide('btn-archive-delete');
     } else {
       const list = d.electives.map(e =>
         `<div style="font-size:12px;padding:3px 0">• ${e.name} (${e.level||'—'}) — ${e.date_range||''}</div>`
       ).join('');
-      el.innerHTML = `<p style="font-size:13px;font-weight:600;margin-bottom:8px">พบ ${d.count} คน ที่จะถูกลบ:</p>${list}`;
+      el.innerHTML = monthHdr + `<p style="font-size:13px;font-weight:600;margin-bottom:8px">พบ ${d.count} คน ที่จะถูกลบ:</p>${list}`;
       show('btn-archive-delete');
     }
     show('archive-preview');

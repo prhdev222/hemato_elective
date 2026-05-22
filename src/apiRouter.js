@@ -620,11 +620,21 @@ async function getElectiveStats(db) {
   const { rows } = await db.execute(`SELECT * FROM elective_stats ORDER BY month DESC LIMIT 24`);
   return rows;
 }
+/** วันสุดท้ายของเดือน YYYY-MM (เดือน 1–12 จากสตริง ไม่ใช่ month index 0-based) */
+function endOfMonthFromYyyyMm(yyyyMm) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(yyyyMm || '').trim());
+  if (!m) return null;
+  const ty = Number(m[1]);
+  const tm = Number(m[2]);
+  if (tm < 1 || tm > 12) return null;
+  return new Date(ty, tm, 0);
+}
+
 async function archivePreview(targetMonth, db) {
   if (!targetMonth) return { count: 0, electives: [] };
+  const mEnd = endOfMonthFromYyyyMm(targetMonth);
+  if (!mEnd) return { count: 0, electives: [] };
   const { rows } = await db.execute(`SELECT id, name, level, from_hospital, date_range, date_range2 FROM electives`);
-  const [ty, tm] = targetMonth.split('-').map(Number);
-  const mEnd = new Date(ty, tm, 0);
   const matched = rows.filter(e => {
     const r = parseDateRange(e.date_range);
     const r2 = parseDateRange(e.date_range2);
@@ -634,9 +644,9 @@ async function archivePreview(targetMonth, db) {
 }
 async function archiveAndDeleteMonth(targetMonth, db) {
   if (!targetMonth) return { success: false, error: 'ไม่ได้ระบุเดือน' };
+  const mEnd = endOfMonthFromYyyyMm(targetMonth);
+  if (!mEnd) return { success: false, error: 'รูปแบบเดือนไม่ถูกต้อง (ใช้ YYYY-MM)' };
   const { rows: electives } = await db.execute(`SELECT * FROM electives`);
-  const [ty, tm] = targetMonth.split('-').map(Number);
-  const mEnd = new Date(ty, tm, 0);
   const toArchive = electives.filter(e => {
     const r = parseDateRange(e.date_range);
     const r2 = parseDateRange(e.date_range2);
