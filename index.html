@@ -3601,6 +3601,7 @@ async function loadManageData() {
     `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray2)">
       <span style="flex:1;font-size:13px">${escapeHtml(e.name)}${e.name_en ? ` <span style="color:var(--gray4);font-size:11px">(${escapeHtml(e.name_en)})</span>` : ''} <span style="color:var(--gray4);font-size:11px">${escapeHtml(e.level || '')}</span></span>
       <button class="btn-icon btn-sm" onclick="openEditElective('${e.id}')">✏️</button>
+      <button class="btn-icon btn-sm" onclick="deleteElectiveFromManage('${e.id}')" title="ลบแพทย์ Elective">🗑️</button>
     </div>`
   ).join('') || '<p class="empty-state">ไม่มีข้อมูล</p>';
 
@@ -3655,6 +3656,19 @@ async function deleteSupervisor(id) {
     loadManageData();
     toast('ลบแล้ว');
   } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteElectiveFromManage(id) {
+  const elective = state.electives.find(e => e.id === id);
+  const electiveName = elective?.name || 'รายการนี้';
+  if (!confirm(`ลบแพทย์ Elective "${electiveName}" ใช่หรือไม่?`)) return;
+  try {
+    const res = await api({ action:'hard_delete_elective', id }, true);
+    if (!res.success) throw new Error(res.error || 'ลบไม่ได้');
+    toast('ลบแล้ว','success');
+    await loadPage();
+    if (document.getElementById('modal-manage')?.classList.contains('open')) loadManageData();
+  } catch(e) { toast('ลบไม่ได้: ' + e.message,'error'); }
 }
 
 async function editSupervisor(id) {
