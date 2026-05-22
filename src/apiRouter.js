@@ -247,7 +247,8 @@ function currentMonth() {
 
 async function runElectivePreview(searchParams, db) {
   const qIn = (searchParams.get('q') || '').trim();
-  const chiefMonth = searchParams.get('month') || searchParams.get('chief_month') || null;
+  const chiefMonth =
+    searchParams.get('month') || searchParams.get('chief_month') || currentMonth();
   const words = qIn.split(/\s+/).filter(Boolean);
   if (qIn.length < 2) return ok({ elective_preview: { hint: 'short' } });
   const latinOneWordOk =
