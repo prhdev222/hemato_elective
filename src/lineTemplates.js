@@ -77,16 +77,18 @@ const _templateCache = new Map();
 
 export async function getTemplate(key, db) {
   if (_templateCache.has(key)) return _templateCache.get(key);
-  let value = DEFAULT_TEMPLATES[key] || '';
-  try {
-    const { rows } = await db.execute({
-      sql: `SELECT value FROM templates WHERE key=?`,
-      args: [key],
+  const promise = db.execute({ sql: `SELECT value FROM templates WHERE key=?`, args: [key] })
+    .then(({ rows }) => {
+      const val = rows[0]?.value || DEFAULT_TEMPLATES[key] || '';
+      _templateCache.set(key, val);
+      return val;
+    })
+    .catch(() => {
+      _templateCache.delete(key);
+      return DEFAULT_TEMPLATES[key] || '';
     });
-    if (rows[0]?.value) value = rows[0].value;
-  } catch { /* fallback to default */ }
-  _templateCache.set(key, value);
-  return value;
+  _templateCache.set(key, promise);
+  return promise;
 }
 
 export async function getSetting(key, db) {

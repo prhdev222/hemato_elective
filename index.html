@@ -1850,7 +1850,7 @@ async function bootstrapPublicSettingsAndLiff() {
       state.publicSettings = pub.data;
       applyManualLink();
     }
-  } catch (e) { /* offline / CORS → ใช้ flow เดิม */ }
+  } catch (e) { _publicSettingsBootstrap = null; /* offline / CORS → allow loadPage() to retry */ }
 
   if (state.user) return;
   try {
