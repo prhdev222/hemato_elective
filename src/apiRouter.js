@@ -520,16 +520,30 @@ async function deleteSupervisor(id, db) {
 }
 async function saveChief(data, db) {
   const id = data.id || `C${Date.now()}`;
-  await db.execute({
-    sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id,date_from,date_to)
-          VALUES(?,?,?,?,?,?,?,?)
-          ON CONFLICT(id) DO UPDATE SET
-          month=excluded.month, ward_code=excluded.ward_code,
-          chief_name=excluded.chief_name, supervise_list=excluded.supervise_list,
-          chief_line_id=excluded.chief_line_id,
-          date_from=excluded.date_from, date_to=excluded.date_to`,
-    args: [id, data.month, data.ward_code, data.chief_name, data.supervise_list||'', data.chief_line_id||'', data.date_from||null, data.date_to||null],
-  });
+  try {
+    await db.execute({
+      sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id,date_from,date_to)
+            VALUES(?,?,?,?,?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET
+            month=excluded.month, ward_code=excluded.ward_code,
+            chief_name=excluded.chief_name, supervise_list=excluded.supervise_list,
+            chief_line_id=excluded.chief_line_id,
+            date_from=excluded.date_from, date_to=excluded.date_to`,
+      args: [id, data.month, data.ward_code, data.chief_name, data.supervise_list||'', data.chief_line_id||'', data.date_from||null, data.date_to||null],
+    });
+  } catch (e) {
+    // fallback for before migration runs (date_from/date_to columns don't exist yet)
+    if (!/no such column|date_from|date_to/i.test(String(e))) throw e;
+    await db.execute({
+      sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id)
+            VALUES(?,?,?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET
+            month=excluded.month, ward_code=excluded.ward_code,
+            chief_name=excluded.chief_name, supervise_list=excluded.supervise_list,
+            chief_line_id=excluded.chief_line_id`,
+      args: [id, data.month, data.ward_code, data.chief_name, data.supervise_list||'', data.chief_line_id||''],
+    });
+  }
   return { success: true, id };
 }
 async function deleteChief(id, db) {
