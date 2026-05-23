@@ -203,7 +203,7 @@ function parseElectiveRangeDates(rangeText) {
   const s = String(rangeText || '').trim();
   const m = s.match(/(\d{4}-\d{2}-\d{2})\s*(?:ถึง|to|-)\s*(\d{4}-\d{2}-\d{2})/);
   if (!m) return null;
-  return { start: new Date(m[1]), end: new Date(m[2]) };
+  return { start: new Date(`${m[1]}T12:00:00`), end: new Date(`${m[2]}T12:00:00`) };
 }
 
 function monthFromRangeStart(rangeText) {

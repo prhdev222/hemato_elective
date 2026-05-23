@@ -3164,16 +3164,17 @@ function renderElectiveTable() {
     }
 
     const canEdit = state.user?.role !== 'viewer';
+    const eIdSafe = escapeHtml(e.id);
     return `<tr>
       <td>
-        <button type="button" class="link-btn js-open-elective-detail" data-elective-id="${e.id}">${electiveDisplayName(e)}</button>
-        <br><span style="font-size:11px;color:var(--gray4)">${e.from_hospital||''}</span>
+        <button type="button" class="link-btn js-open-elective-detail" data-elective-id="${eIdSafe}">${escapeHtml(electiveDisplayName(e))}</button>
+        <br><span style="font-size:11px;color:var(--gray4)">${escapeHtml(e.from_hospital||'')}</span>
       </td>
-      <td><span class="badge badge-blue">${e.level||'—'}</span></td>
+      <td><span class="badge badge-blue">${escapeHtml(e.level||'—')}</span></td>
       <td style="font-size:12px">${wardHtml}</td>
       <td>${opdHtml}</td>
       <td style="text-align:center">${statusBadge}</td>
-      <td>${canEdit?`<button class="btn-icon btn-sm" onclick="openEditElective('${e.id}')">✏️</button>`:''}</td>
+      <td>${canEdit?`<button class="btn-icon btn-sm" aria-label="แก้ไข Elective" onclick="openEditElective('${eIdSafe}')">✏️</button>`:''}</td>
     </tr>`;
   }).join('');
 }
@@ -3318,7 +3319,7 @@ function renderOPDDayList(dateStr) {
       try { eIds = JSON.parse(e.elective_ids || '[]'); } catch(_) {}
       const electiveList = eIds.map(id => {
         const el2 = state.electives.find(x => x.id === id);
-        return el2 ? `<div style="font-size:11px;padding:2px 0;border-bottom:1px dashed var(--gray2);color:var(--gray5)">• ${el2.name} <span style="color:var(--gray4)">${el2.level || ''}</span></div>` : '';
+        return el2 ? `<div style="font-size:11px;padding:2px 0;border-bottom:1px dashed var(--gray2);color:var(--gray5)">• ${escapeHtml(el2.name)} <span style="color:var(--gray4)">${escapeHtml(el2.level || '')}</span></div>` : '';
       }).filter(Boolean).join('');
       const eCount = eIds.length;
       return `<div style="border:1px solid var(--gray2);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff">
@@ -4043,16 +4044,18 @@ async function getChiefsForMonthClient(monthYyyyMm) {
   }
 }
 
-/** ดึง Chief ตามเดือนเริ่มของแต่ละช่วง elective — logic เดียวกับ LINE bot */
 async function resolveElectiveChiefsClient(e) {
   const fallbackMonth = currentMonthStr();
   const month1 = monthFromRangeStart(e?.date_range) || fallbackMonth;
-  const month2 = monthFromRangeStart(e?.date_range2) || month1 || fallbackMonth;
+  const month2 = monthFromRangeStart(e?.date_range2) || month1;
   const ward1Code = wardToCodeForElective(e?.ward);
   const ward2Code = wardToCodeForElective(e?.ward2);
 
-  const chiefs1 = await getChiefsForMonthClient(month1);
-  const chiefs2 = month2 === month1 ? chiefs1 : await getChiefsForMonthClient(month2);
+  const [chiefs1, chiefs2raw] = await Promise.all([
+    getChiefsForMonthClient(month1),
+    month2 === month1 ? Promise.resolve(null) : getChiefsForMonthClient(month2),
+  ]);
+  const chiefs2 = chiefs2raw ?? chiefs1;
 
   return {
     c1: ward1Code ? (chiefs1[ward1Code] || {}) : {},
@@ -5072,7 +5075,7 @@ async function previewArchive() {
       hide('btn-archive-delete');
     } else {
       const list = d.electives.map(e =>
-        `<div style="font-size:12px;padding:3px 0">• ${e.name} (${e.level||'—'}) — ${e.date_range||''}</div>`
+        `<div style="font-size:12px;padding:3px 0">• ${escapeHtml(e.name)} (${escapeHtml(e.level||'—')}) — ${escapeHtml(e.date_range||'')}</div>`
       ).join('');
       el.innerHTML = monthHdr + `<p style="font-size:13px;font-weight:600;margin-bottom:8px">พบ ${d.count} คน ที่จะถูกลบ:</p>${list}`;
       show('btn-archive-delete');
@@ -5150,7 +5153,7 @@ async function loadArchiveStats() {
     });
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML = `<span style="color:var(--red)">โหลดไม่ได้: ${e.message}</span>`;
+    el.innerHTML = `<span style="color:var(--red)">โหลดไม่ได้: ${escapeHtml(e.message)}</span>`;
   }
 }
 
@@ -5235,7 +5238,7 @@ async function openStatsModal() {
     await ensureChartJs();
     renderStatsDashboard();
   } catch(e) {
-    if (cardsEl) cardsEl.innerHTML = `<p class="empty-state" style="color:var(--red)">โหลดไม่ได้: ${e.message}</p>`;
+    if (cardsEl) cardsEl.innerHTML = `<p class="empty-state" style="color:var(--red)">โหลดไม่ได้: ${escapeHtml(e.message)}</p>`;
   }
 }
 

@@ -34,7 +34,9 @@ export const router = {
       return ok({ data: await getSupervisors(db) });
     }
     if (action === 'electives') {
-      return ok({ data: await getElectives(url.searchParams.get('status'), db) });
+      const rawStatus = url.searchParams.get('status');
+      const status = ['upcoming', 'active', 'completed'].includes(rawStatus) ? rawStatus : null;
+      return ok({ data: await getElectives(status, db) });
     }
     if (action === 'chiefs') {
       return ok({ data: await getChiefs(month, db) });
@@ -299,9 +301,11 @@ async function getSetting(key, db) {
   return rows[0]?.value || '';
 }
 async function getLineOaSettings(db) {
-  const welcome = await getSetting('line_oa_welcome', db);
-  const sheetRaw = await getSetting('line_oa_sheet_url', db);
-  const friendRaw = await getSetting('line_oa_add_friend_url', db);
+  const [welcome, sheetRaw, friendRaw] = await Promise.all([
+    getSetting('line_oa_welcome', db),
+    getSetting('line_oa_sheet_url', db),
+    getSetting('line_oa_add_friend_url', db),
+  ]);
   return {
     welcome,
     sheet_url: sheetRaw || LINE_OA_DEFAULT_SHEET,
@@ -330,9 +334,11 @@ async function saveLineOaSettings(payload, db) {
 }
 async function getPublicSettings(db, env) {
   const keys = ['pdf_manual_url', 'elective_calendar_url', 'calendar_public_view'];
-  const result = [];
-  for (const key of keys) result.push({ key, value: await getSetting(key, db) });
-  const lo = await getLineOaSettings(db);
+  const [settingValues, lo] = await Promise.all([
+    Promise.all(keys.map(k => getSetting(k, db))),
+    getLineOaSettings(db),
+  ]);
+  const result = keys.map((key, i) => ({ key, value: settingValues[i] }));
   result.push({ key: 'line_oa_welcome', value: lo.welcome });
   result.push({ key: 'line_oa_sheet_url', value: lo.sheet_url });
   result.push({ key: 'line_oa_add_friend_url', value: lo.add_friend_url });
