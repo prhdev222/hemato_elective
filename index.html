@@ -2080,6 +2080,21 @@ function formatShortDateTH(yyyyMmDd) {
   return new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }).format(d);
 }
 
+// Returns display string for ALL chiefs in the month list, e.g. "นพ.A (1–7 พ.ค.) / นพ.B (8–14 พ.ค.)"
+function allChiefsDisplay(list) {
+  const slots = (list || []).filter(c => c.chief_name);
+  if (!slots.length) return '—';
+  return slots.map(c => {
+    const name = chiefResidentDisplayNameForLang(c, _lang);
+    if (c.date_from || c.date_to) {
+      const from = c.date_from ? formatShortDateTH(c.date_from) : '...';
+      const to   = c.date_to   ? formatShortDateTH(c.date_to)   : '...';
+      return `${name} (${from}–${to})`;
+    }
+    return name;
+  }).join(' / ');
+}
+
 // Returns the chief active on dateStr (default: today) from a list of chief slots.
 function activeChiefFromList(list, dateStr) {
   if (!list || !list.length) return {};
@@ -2186,8 +2201,9 @@ function openWardSchedule(wardCode) {
   );
 
   // summary
-  const chiefName = chiefResidentDisplayName(chief);
-  const supList   = superviseListDisplay(chief.supervise_list);
+  const chiefList = state.chiefs[wardCode] || [];
+  const chiefName = allChiefsDisplay(chiefList);
+  const supList   = superviseListDisplay((chiefList[0] || {}).supervise_list);
   document.getElementById('ward-schedule-summary').innerHTML =
     `<strong>👑 ${t("chief_label")}</strong> ${chiefName} &nbsp;|&nbsp; <strong>👨‍⚕️ ${t('supervised_by_label')}</strong> ${supList}` +
     `<br><span style="color:var(--navy);font-weight:700">${electives.length}</span> ` + (_i18n[_lang]?.round_count || _i18n.th.round_count)(electives.length, wardLabel);
@@ -2391,12 +2407,12 @@ function downloadWardScheduleCSV() {
 }
 
 function renderChiefs() {
-  const male   = activeChiefFromList(state.chiefs['male']);
-  const female = activeChiefFromList(state.chiefs['female']);
-  setText('chief-male-name',   chiefResidentDisplayName(male));
-  setText('chief-male-sup',    superviseListDisplay(male.supervise_list));
-  setText('chief-female-name', chiefResidentDisplayName(female));
-  setText('chief-female-sup',  superviseListDisplay(female.supervise_list));
+  const maleList   = state.chiefs['male']   || [];
+  const femaleList = state.chiefs['female'] || [];
+  setText('chief-male-name',   allChiefsDisplay(maleList));
+  setText('chief-male-sup',    superviseListDisplay((maleList[0]  || {}).supervise_list));
+  setText('chief-female-name', allChiefsDisplay(femaleList));
+  setText('chief-female-sup',  superviseListDisplay((femaleList[0] || {}).supervise_list));
 }
 
 // ── Thai Public Holidays + DB holidays ───────────────────────
@@ -4685,13 +4701,13 @@ async function saveCalendarImage() {
     headerBar.innerHTML = '<span style="font-size:16px;font-weight:700">📅 HSOS Calendar — ' + monthLabel + '</span>';
 
     // chief summary
-    const male   = activeChiefFromList(state.chiefs['male']);
-    const female = activeChiefFromList(state.chiefs['female']);
+    const maleList   = state.chiefs['male']   || [];
+    const femaleList = state.chiefs['female'] || [];
     const chiefBar = document.createElement('div');
     chiefBar.style.cssText = 'background:#EBF2FF;padding:8px 18px;display:flex;gap:24px;font-size:12px;color:#1B3A6B;border-bottom:1px solid #ddd';
     chiefBar.innerHTML =
-      '<span>♂ <strong>' + escapeHtml(chiefResidentDisplayName(male)) + '</strong> · ' + escapeHtml(t('supervised_by_label')) + ' ' + escapeHtml(superviseListDisplay(male.supervise_list)) + '</span>' +
-      '<span>♀ <strong>' + escapeHtml(chiefResidentDisplayName(female)) + '</strong> · ' + escapeHtml(t('supervised_by_label')) + ' ' + escapeHtml(superviseListDisplay(female.supervise_list)) + '</span>';
+      '<span>♂ <strong>' + escapeHtml(allChiefsDisplay(maleList)) + '</strong> · ' + escapeHtml(t('supervised_by_label')) + ' ' + escapeHtml(superviseListDisplay((maleList[0]||{}).supervise_list)) + '</span>' +
+      '<span>♀ <strong>' + escapeHtml(allChiefsDisplay(femaleList)) + '</strong> · ' + escapeHtml(t('supervised_by_label')) + ' ' + escapeHtml(superviseListDisplay((femaleList[0]||{}).supervise_list)) + '</span>';
 
     // hint bar
     const hint = document.createElement('div');
