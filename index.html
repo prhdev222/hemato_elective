@@ -798,24 +798,48 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 
 <!-- Edit Chief -->
 <div class="overlay" id="modal-chief">
-  <div class="modal">
+  <div class="modal" style="max-width:560px">
     <div class="modal-header">
       <h2 id="chief-modal-title">✏️ แก้ไข Chief / Supervise</h2>
       <button class="close-btn" onclick="closeModal('modal-chief')">×</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="chief-ward-code">
-      <div class="field"><label>👑 Chief Resident</label>
-        <select id="chief-name-sel"><option value="">— เลือก —</option></select></div>
-      <div class="field" id="chief-line-field">
-        <label>LINE ID: <span id="chief-line-display" style="font-weight:400;color:var(--teal)">—</span></label>
+
+      <!-- Chief slots list -->
+      <div class="field">
+        <label>👑 Chief รายสัปดาห์</label>
+        <div id="chief-slots-list" style="margin-bottom:8px"></div>
+        <!-- Add new slot form -->
+        <div style="background:var(--gray1);border-radius:8px;padding:10px 12px">
+          <div style="font-size:11px;font-weight:700;color:var(--gray4);text-transform:uppercase;margin-bottom:8px">+ เพิ่ม Chief ช่วงวัน</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div>
+              <label style="font-size:11px;display:block;margin-bottom:2px">ตั้งแต่</label>
+              <input type="date" id="chief-add-from" style="width:138px">
+            </div>
+            <div>
+              <label style="font-size:11px;display:block;margin-bottom:2px">ถึง</label>
+              <input type="date" id="chief-add-to" style="width:138px">
+            </div>
+            <div style="flex:1;min-width:140px">
+              <label style="font-size:11px;display:block;margin-bottom:2px">Chief Resident</label>
+              <select id="chief-add-name" style="width:100%"><option value="">— เลือก —</option></select>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="addChiefSlot()" style="white-space:nowrap">+ เพิ่ม</button>
+          </div>
+        </div>
       </div>
-      <div class="field"><label>👨‍⚕️ Supervise โดย (Ctrl/Shift เพื่อเลือกหลายคน)</label>
-        <select id="chief-sup-sel" multiple class="multi-select"></select></div>
+
+      <!-- Supervisor section -->
+      <div class="field" style="margin-top:4px">
+        <label>👨‍⚕️ Supervise อาจารย์ทั้งเดือน (Ctrl/Shift เพื่อเลือกหลายคน)</label>
+        <select id="chief-sup-sel" multiple class="multi-select"></select>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-chief')">ยกเลิก</button>
-      <button class="btn btn-success" onclick="saveChief()">💾 บันทึก</button>
+      <button class="btn btn-success" onclick="saveWardSupervise()">💾 บันทึก Supervise</button>
     </div>
   </div>
 </div>
@@ -2042,8 +2066,56 @@ function applyManualLink() {
 
 function indexChiefs(list) {
   const r = {};
-  list.forEach(c => { r[c.ward_code] = c; });
+  list.forEach(c => {
+    if (!r[c.ward_code]) r[c.ward_code] = [];
+    r[c.ward_code].push(c);
+  });
   return r;
+}
+
+function formatShortDateTH(yyyyMmDd) {
+  const s = String(yyyyMmDd || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(`${s}T00:00:00Z`);
+  return new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }).format(d);
+}
+
+// Returns the chief active on dateStr (default: today) from a list of chief slots.
+function activeChiefFromList(list, dateStr) {
+  if (!list || !list.length) return {};
+  const d = dateStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const found = list.find(c => {
+    const from = c.date_from || '0000-01-01';
+    const to   = c.date_to   || '9999-12-31';
+    return d >= from && d <= to;
+  });
+  return found || list[0] || {};
+}
+
+// Returns a single merged chief object for a given date range (for elective chief resolution).
+function mergeChiefsForPeriod(list, periodStart, periodEnd) {
+  if (!list || !list.length) return {};
+  const overlapping = periodStart
+    ? list.filter(c => {
+        const from = c.date_from || '0000-01-01';
+        const to   = c.date_to   || '9999-12-31';
+        return from <= (periodEnd || '9999-12-31') && to >= periodStart;
+      })
+    : list;
+  const active = overlapping.length ? overlapping : list;
+  if (active.length === 1) return active[0];
+  const names = active.map(c => {
+    const n = String(c.chief_name || '').trim() || '—';
+    if (c.date_from || c.date_to) {
+      const from = c.date_from ? formatShortDateTH(c.date_from) : '';
+      const to   = c.date_to   ? formatShortDateTH(c.date_to)   : '';
+      const range = from && to ? `${from}–${to}` : from || to;
+      return range ? `${n} (${range})` : n;
+    }
+    return n;
+  }).join(' / ');
+  const links = active.filter(c => c.chief_line_id).map(c => c.chief_line_id).join('\n👉 ');
+  return { chief_name: names, chief_line_id: links, supervise_list: active[0].supervise_list || '' };
 }
 
 // ── Render ────────────────────────────────────────────────────
@@ -2073,7 +2145,7 @@ function renderMonthLabel() {
 function openWardSchedule(wardCode) {
   const wardKeyword = wardCode === 'male' ? 'วอร์ดชาย' : 'วอร์ดหญิง';
   const wardLabel = t(wardCode === 'male' ? 'ward_label_male' : 'ward_label_female');
-  const chief = state.chiefs[wardCode] || {};
+  const chief = activeChiefFromList(state.chiefs[wardCode]);
   const [y, m] = state.month.split('-').map(Number);
   const mStart = new Date(y, m - 1, 1);
   const mEnd   = new Date(y, m, 0);
@@ -2319,8 +2391,8 @@ function downloadWardScheduleCSV() {
 }
 
 function renderChiefs() {
-  const male   = state.chiefs['male']   || {};
-  const female = state.chiefs['female'] || {};
+  const male   = activeChiefFromList(state.chiefs['male']);
+  const female = activeChiefFromList(state.chiefs['female']);
   setText('chief-male-name',   chiefResidentDisplayName(male));
   setText('chief-male-sup',    superviseListDisplay(male.supervise_list));
   setText('chief-female-name', chiefResidentDisplayName(female));
@@ -3587,53 +3659,118 @@ function openChiefModal(wardCode) {
   const wLabel = t(wardCode === 'male' ? 'ward_label_male' : 'ward_label_female');
   setText('chief-modal-title', (_lang === 'en' ? '✏️ Edit Chief / Supervise — ' : '✏️ แก้ไข Chief / Supervise — ') + wLabel);
 
-  // Populate chief dropdown (residents)
-  const chiefSel = document.getElementById('chief-name-sel');
-  chiefSel.innerHTML = '<option value="">— เลือก —</option>' +
+  // Populate "add slot" resident dropdown
+  const addSel = document.getElementById('chief-add-name');
+  addSel.innerHTML = '<option value="">— เลือก —</option>' +
     state.residents.map(r => `<option value="${r.name}">${r.name} (${r.role||''})</option>`).join('');
-  chiefSel.onchange = () => {
-    const r = state.residents.find(x => x.name === chiefSel.value);
-    setText('chief-line-display', r?.line_id || '—');
-  };
 
-  // Populate supervisor multi-select
+  // Set default date range for new slot: Monday–Sunday of current week
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const td = new Date(today + 'T12:00:00');
+  const dow = td.getDay(); // 0=Sun
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const mon = new Date(td); mon.setDate(td.getDate() + mondayOffset);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmtIso = d => d.toLocaleDateString('sv-SE');
+  document.getElementById('chief-add-from').value = fmtIso(mon);
+  document.getElementById('chief-add-to').value   = fmtIso(sun);
+
+  // Populate supervisor multi-select (shared across all slots)
+  const slots = state.chiefs[wardCode] || [];
+  const firstSup = (slots[0]?.supervise_list || '').split(',').map(s => s.trim()).filter(Boolean);
   const supSel = document.getElementById('chief-sup-sel');
-  const existing = state.chiefs[wardCode] || {};
-  const existingSup = (existing.supervise_list || '').split(',').map(s => s.trim()).filter(Boolean);
   supSel.innerHTML = state.supervisors.map(s =>
-    `<option value="${s.name}" ${existingSup.includes(s.name)?'selected':''}>${s.name}</option>`
+    `<option value="${s.name}" ${firstSup.includes(s.name)?'selected':''}>${s.name}</option>`
   ).join('');
 
-  if (existing.chief_name) chiefSel.value = existing.chief_name;
-  const selectedResident = state.residents.find(r => r.name === chiefSel.value);
-  setText('chief-line-display', existing.chief_line_id || selectedResident?.line_id || '—');
+  renderChiefSlotsList(wardCode);
   openModal('modal-chief');
 }
 
-async function saveChief() {
-  const wardCode = document.getElementById('chief-ward-code').value;
-  const chiefName = document.getElementById('chief-name-sel').value;
-  const supSel = document.getElementById('chief-sup-sel');
-  const supList = Array.from(supSel.selectedOptions).map(o => o.value).join(', ');
-  const existing = state.chiefs[wardCode] || {};
+function renderChiefSlotsList(wardCode) {
+  const slots = (state.chiefs[wardCode] || []).filter(c => c.chief_name || c.date_from || c.date_to);
+  const el = document.getElementById('chief-slots-list');
+  if (!slots.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--gray4);margin:4px 0 8px">ยังไม่มี Chief — เพิ่มได้ด้านล่าง</p>';
+    return;
+  }
+  el.innerHTML = slots.map(c => {
+    const name = escapeHtml(c.chief_name || '—');
+    let dateLabel = '';
+    if (c.date_from || c.date_to) {
+      const from = c.date_from ? formatShortDateTH(c.date_from) : '...';
+      const to   = c.date_to   ? formatShortDateTH(c.date_to)   : '...';
+      dateLabel = `<span style="color:var(--gray4);font-size:11px;margin-left:6px">${escapeHtml(from)} – ${escapeHtml(to)}</span>`;
+    }
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:4px;background:#fff;border:1px solid var(--gray2);border-radius:6px">
+      <span style="flex:1;font-size:13px;font-weight:600">${name}${dateLabel}</span>
+      <button class="btn-icon btn-sm" title="ลบ" onclick="deleteChiefSlot('${escapeHtml(c.id)}','${escapeHtml(wardCode)}')">🗑️</button>
+    </div>`;
+  }).join('');
+}
 
-  const chiefResident = state.residents.find(r => r.name === chiefName);
+async function addChiefSlot() {
+  const wardCode  = document.getElementById('chief-ward-code').value;
+  const chiefName = document.getElementById('chief-add-name').value;
+  const dateFrom  = document.getElementById('chief-add-from').value;
+  const dateTo    = document.getElementById('chief-add-to').value;
+  if (!chiefName) { toast('กรุณาเลือก Chief Resident', 'error'); return; }
+
+  const resident = state.residents.find(r => r.name === chiefName);
+  // Carry over existing supervise_list from first slot of this ward
+  const existingSlots = state.chiefs[wardCode] || [];
+  const supList = existingSlots[0]?.supervise_list || '';
 
   const data = {
-    id:            existing.id || `C${Date.now()}`,
-    month:         state.month,
-    ward_code:     wardCode,
-    chief_name:    chiefName,
+    month:          state.month,
+    ward_code:      wardCode,
+    chief_name:     chiefName,
+    chief_line_id:  resident?.line_id || '',
     supervise_list: supList,
-    chief_line_id: chiefResident?.line_id || existing.chief_line_id || '',
+    date_from:      dateFrom || null,
+    date_to:        dateTo   || null,
   };
   try {
     const res = await api({ action:'save_chief', data }, true);
     if (!res.success) throw new Error(res.error);
+    toast('เพิ่ม Chief แล้ว ✓', 'success');
+    await reloadChiefsState();
+    renderChiefSlotsList(wardCode);
+  } catch(e) { toast('เพิ่มไม่ได้: '+e.message, 'error'); }
+}
+
+async function deleteChiefSlot(id, wardCode) {
+  if (!confirm('ลบ Chief slot นี้?')) return;
+  try {
+    const res = await api({ action:'delete_chief', id }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('ลบแล้ว ✓', 'success');
+    await reloadChiefsState();
+    renderChiefSlotsList(wardCode);
+    renderChiefs();
+  } catch(e) { toast('ลบไม่ได้: '+e.message, 'error'); }
+}
+
+async function saveWardSupervise() {
+  const wardCode = document.getElementById('chief-ward-code').value;
+  const supSel = document.getElementById('chief-sup-sel');
+  const supList = Array.from(supSel.selectedOptions).map(o => o.value).join(', ');
+  try {
+    const res = await api({ action:'save_ward_supervise', data:{ month:state.month, ward_code:wardCode, supervise_list:supList } }, true);
+    if (!res.success) throw new Error(res.error);
     closeModal('modal-chief');
-    toast('บันทึกแล้ว ✓','success');
-    await loadPage();
+    toast('บันทึก Supervise แล้ว ✓','success');
+    await reloadChiefsState();
+    renderChiefs();
   } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+}
+
+async function reloadChiefsState() {
+  try {
+    const res = await apiGet(`action=chiefs&month=${encodeURIComponent(state.month)}`);
+    state.chiefs = indexChiefs(res?.data || []);
+    _chiefsByMonthCache[state.month] = state.chiefs;
+  } catch { /* keep existing state */ }
 }
 
 // ── Manage data ──────────────────────────────────────────────
@@ -4065,9 +4202,13 @@ async function resolveElectiveChiefsClient(e) {
   ]);
   const chiefs2 = chiefs2raw ?? chiefs1;
 
+  const r1 = parseRange(e?.date_range || '');
+  const r2 = parseRange(e?.date_range2 || '');
+  const fmtD = d => d?.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+
   return {
-    c1: ward1Code ? (chiefs1[ward1Code] || {}) : {},
-    c2: ward2Code ? (chiefs2[ward2Code] || {}) : {},
+    c1: ward1Code ? mergeChiefsForPeriod(chiefs1[ward1Code] || [], r1 ? fmtD(r1.start) : null, r1 ? fmtD(r1.end) : null) : {},
+    c2: ward2Code ? mergeChiefsForPeriod(chiefs2[ward2Code] || [], r2 ? fmtD(r2.start) : null, r2 ? fmtD(r2.end) : null) : {},
   };
 }
 function fmtLineClient(line) {
@@ -4544,8 +4685,8 @@ async function saveCalendarImage() {
     headerBar.innerHTML = '<span style="font-size:16px;font-weight:700">📅 HSOS Calendar — ' + monthLabel + '</span>';
 
     // chief summary
-    const male   = state.chiefs['male']   || {};
-    const female = state.chiefs['female'] || {};
+    const male   = activeChiefFromList(state.chiefs['male']);
+    const female = activeChiefFromList(state.chiefs['female']);
     const chiefBar = document.createElement('div');
     chiefBar.style.cssText = 'background:#EBF2FF;padding:8px 18px;display:flex;gap:24px;font-size:12px;color:#1B3A6B;border-bottom:1px solid #ddd';
     chiefBar.innerHTML =

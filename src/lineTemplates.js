@@ -136,12 +136,44 @@ export function formatThaiRange(rangeText) {
 
 export async function getChiefsForMonth(db, monthYyyyMm) {
   const { rows } = await db.execute({
-    sql: `SELECT * FROM chiefs WHERE month=?`,
+    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code, date_from`,
     args: [monthYyyyMm],
   });
-  const r = {};
-  for (const c of rows) r[c.ward_code] = c;
-  return { male: r.male, female: r.female };
+  const r = { male: [], female: [] };
+  for (const c of rows) {
+    if (r[c.ward_code]) r[c.ward_code].push(c);
+  }
+  return r;
+}
+
+function mergeChiefSlots(list, periodStart, periodEnd) {
+  if (!list || !list.length) return null;
+  const overlapping = periodStart
+    ? list.filter(c => {
+        const from = c.date_from || '0000-01-01';
+        const to   = c.date_to   || '9999-12-31';
+        return from <= (periodEnd || '9999-12-31') && to >= periodStart;
+      })
+    : list;
+  const active = overlapping.length ? overlapping : list;
+  if (active.length === 1) return active[0];
+  // Multiple chiefs — merge names and LINE links
+  const names = active.map(c => {
+    const n = String(c.chief_name || '').trim() || '—';
+    if (c.date_from || c.date_to) {
+      const from = c.date_from ? formatThaiDate(c.date_from) : '';
+      const to   = c.date_to   ? formatThaiDate(c.date_to)   : '';
+      const range = from && to ? `${from}–${to}` : from || to;
+      return range ? `${n} (${range})` : n;
+    }
+    return n;
+  }).join(' / ');
+  const links = active.filter(c => c.chief_line_id).map(c => c.chief_line_id).join('\n👉 ');
+  return {
+    chief_name:     names,
+    chief_line_id:  links,
+    supervise_list: active[0].supervise_list || '',
+  };
 }
 
 export async function buildElectiveOPDBlock(elective, db) {
@@ -221,35 +253,47 @@ function monthFromRangeStart(rangeText) {
   return m ? m[1] : '';
 }
 
-async function getChiefForWardByMonth(db, wardCode, monthYyyyMm) {
-  if (!wardCode || !monthYyyyMm) return null;
-  const chiefs = await getChiefsForMonth(db, monthYyyyMm);
-  return chiefs[wardCode] || null;
+function parsePeriodDates(rangeText) {
+  if (!rangeText) return { start: null, end: null };
+  const r = parseElectiveRangeDates(rangeText);
+  if (!r || isNaN(r.start.getTime())) return { start: null, end: null };
+  const fmt = d => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  return { start: fmt(r.start), end: fmt(r.end) };
 }
 
 async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = null) {
   const ward1Code = wardToCodeForElective(elective?.ward);
   const ward2Code = wardToCodeForElective(elective?.ward2);
 
-  if (chiefMonthYyyyMm) {
-    const chiefs = await getChiefsForMonth(db, chiefMonthYyyyMm);
-    return {
-      c1: ward1Code ? chiefs[ward1Code] : null,
-      c2: ward2Code ? chiefs[ward2Code] : null,
-    };
-  }
-
   const fallbackMonth = new Date()
     .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
     .slice(0, 7);
+
+  if (chiefMonthYyyyMm) {
+    const chiefs = await getChiefsForMonth(db, chiefMonthYyyyMm);
+    const p1 = parsePeriodDates(elective?.date_range);
+    const p2 = parsePeriodDates(elective?.date_range2);
+    return {
+      c1: ward1Code ? mergeChiefSlots(chiefs[ward1Code], p1.start, p1.end) : null,
+      c2: ward2Code ? mergeChiefSlots(chiefs[ward2Code], p2.start, p2.end) : null,
+    };
+  }
+
   const month1 = monthFromRangeStart(elective?.date_range) || fallbackMonth;
   const month2 = monthFromRangeStart(elective?.date_range2) || month1 || fallbackMonth;
 
-  const [c1, c2] = await Promise.all([
-    getChiefForWardByMonth(db, ward1Code, month1),
-    getChiefForWardByMonth(db, ward2Code, month2),
+  const [chiefs1, chiefs2raw] = await Promise.all([
+    getChiefsForMonth(db, month1),
+    month2 === month1 ? Promise.resolve(null) : getChiefsForMonth(db, month2),
   ]);
-  return { c1, c2 };
+  const chiefs2 = chiefs2raw ?? chiefs1;
+
+  const p1 = parsePeriodDates(elective?.date_range);
+  const p2 = parsePeriodDates(elective?.date_range2);
+  return {
+    c1: ward1Code ? mergeChiefSlots(chiefs1[ward1Code], p1.start, p1.end) : null,
+    c2: ward2Code ? mergeChiefSlots(chiefs2[ward2Code], p2.start, p2.end) : null,
+  };
 }
 
 function formatEnglishElectiveRange(rangeText) {

@@ -177,6 +177,12 @@ export const router = {
       case 'save_chief':
         if (!can(user,'editor')) return fail('Permission denied');
         return ok(await saveChief(data.data, db));
+      case 'delete_chief':
+        if (!can(user,'editor')) return fail('Permission denied');
+        return ok(await deleteChief(data.id, db));
+      case 'save_ward_supervise':
+        if (!can(user,'editor')) return fail('Permission denied');
+        return ok(await saveWardSupervise(data.data, db));
       case 'save_doctor':
         if (!can(user,'editor')) return fail('Permission denied');
         return ok(await saveDoctor(data.data, db));
@@ -515,15 +521,41 @@ async function deleteSupervisor(id, db) {
 async function saveChief(data, db) {
   const id = data.id || `C${Date.now()}`;
   await db.execute({
-    sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id)
-          VALUES(?,?,?,?,?,?)
+    sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id,date_from,date_to)
+          VALUES(?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET
           month=excluded.month, ward_code=excluded.ward_code,
           chief_name=excluded.chief_name, supervise_list=excluded.supervise_list,
-          chief_line_id=excluded.chief_line_id`,
-    args: [id, data.month, data.ward_code, data.chief_name, data.supervise_list||'', data.chief_line_id||''],
+          chief_line_id=excluded.chief_line_id,
+          date_from=excluded.date_from, date_to=excluded.date_to`,
+    args: [id, data.month, data.ward_code, data.chief_name, data.supervise_list||'', data.chief_line_id||'', data.date_from||null, data.date_to||null],
   });
   return { success: true, id };
+}
+async function deleteChief(id, db) {
+  await db.execute({ sql:`DELETE FROM chiefs WHERE id=?`, args:[id] });
+  return { success: true };
+}
+async function saveWardSupervise(data, db) {
+  // Update supervise_list on all existing chief rows for this ward/month.
+  // If no rows exist yet, create a placeholder row so the supervisor list is not lost.
+  const { rows } = await db.execute({
+    sql: `SELECT id FROM chiefs WHERE month=? AND ward_code=?`,
+    args: [data.month, data.ward_code],
+  });
+  if (rows.length) {
+    await db.execute({
+      sql: `UPDATE chiefs SET supervise_list=? WHERE month=? AND ward_code=?`,
+      args: [data.supervise_list||'', data.month, data.ward_code],
+    });
+  } else {
+    const id = `C${Date.now()}`;
+    await db.execute({
+      sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id) VALUES(?,?,?,?,?,?)`,
+      args: [id, data.month, data.ward_code, '', data.supervise_list||'', ''],
+    });
+  }
+  return { success: true };
 }
 async function saveDoctor(data, db) {
   const id = data.id || `DR-${Date.now()}`;

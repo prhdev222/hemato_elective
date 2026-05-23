@@ -196,3 +196,15 @@ ALTER TABLE chief_residents ADD COLUMN name_en TEXT DEFAULT '';
 -- SELECT id, name, name_en FROM electives        LIMIT 5;
 -- SELECT id, name, name_en FROM supervisors       LIMIT 5;
 -- SELECT id, name, name_en FROM chief_residents   LIMIT 5;
+
+-- ============================================================
+-- Migration 3: chiefs — date_from / date_to per weekly slot
+-- รัน: turso db shell hsos-db < schema.sql  (idempotent)
+-- ============================================================
+
+-- 4. chiefs: เพิ่มช่วงวันสำหรับ Chief รายสัปดาห์
+ALTER TABLE chiefs ADD COLUMN date_from TEXT;
+ALTER TABLE chiefs ADD COLUMN date_to   TEXT;
+
+-- ตรวจสอบหลัง ALTER
+-- SELECT id, month, ward_code, chief_name, date_from, date_to FROM chiefs LIMIT 10;
