@@ -387,7 +387,7 @@ async function getElectives(status, db) {
 }
 async function getChiefs(month, db) {
   const { rows } = await db.execute({
-    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code`,
+    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code, id`,
     args: [month],
   });
   return rows;

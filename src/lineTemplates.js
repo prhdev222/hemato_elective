@@ -136,7 +136,7 @@ export function formatThaiRange(rangeText) {
 
 export async function getChiefsForMonth(db, monthYyyyMm) {
   const { rows } = await db.execute({
-    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code, date_from`,
+    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code, id`,
     args: [monthYyyyMm],
   });
   const r = { male: [], female: [] };
