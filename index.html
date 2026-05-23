@@ -2070,7 +2070,7 @@ function openWardSchedule(wardCode) {
   const [y, m] = state.month.split('-').map(Number);
   const mStart = new Date(y, m - 1, 1);
   const mEnd   = new Date(y, m, 0);
-  const today  = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+  const today  = localDate(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
 
   const monthsTH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const daysTH   = ['อา','จ','อ','พ','พฤ','ศ','ส'];
@@ -2191,7 +2191,7 @@ function openWardSchedule(wardCode) {
   // เก็บ state สำหรับ print/csv
   _lastWardScheduleMeta = { wardLabel };
   _lastWardScheduleRows = rows.map(({ e, periods }) => {
-    const today2 = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+    const today2 = localDate(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
     const allEnds2   = periods.map(p => p.r.end);
     const allStarts2 = periods.map(p => p.r.start);
     const lastEnd2   = allEnds2.length   ? new Date(Math.max(...allEnds2.map(d => d.getTime())))   : null;
@@ -2506,7 +2506,7 @@ function _getFilteredElectiveRows() {
   const [y, m] = state.month.split('-').map(Number);
   const mStart = new Date(y, m - 1, 1);
   const mEnd   = new Date(y, m, 0);
-  const today  = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+  const today  = localDate(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
   const rangeStart = document.getElementById('elc-filter-start')?.value || '';
   const rangeEnd   = document.getElementById('elc-filter-end')?.value   || '';
 
@@ -2529,15 +2529,15 @@ function _getFilteredElectiveRows() {
     if (_electiveFilter === 'waiting') return firstStart && today < firstStart;
     if (_electiveFilter === 'done')    return lastEnd && today > lastEnd;
 
-    // all + date range
-    if (rangeStart && lastEnd   && lastEnd   < new Date(rangeStart)) return false;
-    if (rangeEnd   && firstStart && firstStart > new Date(rangeEnd))  return false;
+    // all + date range (local constructor เพื่อ consistent กับ parseRange)
+    if (rangeStart && lastEnd   && lastEnd   < localDate(rangeStart)) return false;
+    if (rangeEnd   && firstStart && firstStart > localDate(rangeEnd))  return false;
     return true;
   });
 }
 
 function _elecStatusText(e) {
-  const today = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
+  const today = localDate(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
   const r1 = parseRange(e.date_range  || '');
   const r2 = parseRange(e.date_range2 || '');
   const allEnds   = [r1?.end,   r2?.end  ].filter(Boolean);
@@ -2971,7 +2971,7 @@ function renderElectiveTable() {
   const [y,m] = state.month.split('-').map(Number);
   const mStart = new Date(y, m-1, 1);
   const mEnd   = new Date(y, m, 0);
-  const today  = new Date(new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }));
+  const today  = localDate(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }));
 
   // กรองเฉพาะ elective ที่เกี่ยวข้องกับเดือนนี้
   const allInMonth = state.electives.filter(e => {
@@ -3013,14 +3013,8 @@ function renderElectiveTable() {
     // 'all' — แสดงทั้งหมด
 
     // filter ช่วงเวลา (ใช้เมื่อ filter=all หรือประกอบกัน)
-    if (rangeStart) {
-      const rs = new Date(rangeStart);
-      if (lastEnd && lastEnd < rs) return false;
-    }
-    if (rangeEnd) {
-      const re = new Date(rangeEnd);
-      if (firstStart && firstStart > re) return false;
-    }
+    if (rangeStart && lastEnd   && lastEnd   < localDate(rangeStart)) return false;
+    if (rangeEnd   && firstStart && firstStart > localDate(rangeEnd))  return false;
     return true;
   });
 
@@ -3033,8 +3027,8 @@ function renderElectiveTable() {
         const allStarts = [r1?.start, r2?.start].filter(Boolean);
         const lastEnd   = allEnds.length   ? new Date(Math.max(...allEnds))   : null;
         const firstStart = allStarts.length ? new Date(Math.min(...allStarts)) : null;
-        if (rangeStart) { const rs = new Date(rangeStart); if (lastEnd && lastEnd < rs) return false; }
-        if (rangeEnd)   { const re = new Date(rangeEnd);   if (firstStart && firstStart > re) return false; }
+        if (rangeStart && lastEnd   && lastEnd   < localDate(rangeStart)) return false;
+        if (rangeEnd   && firstStart && firstStart > localDate(rangeEnd))  return false;
         return true;
       })
     : inMonth;
@@ -4773,12 +4767,16 @@ function currentMonthStr() {
   return new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Bangkok' }).slice(0,7);
 }
 
+/** แปลง 'YYYY-MM-DD' → local midnight Date (ป้องกัน UTC midnight ≠ Bangkok midnight) */
+function localDate(s) {
+  const [y, mo, d] = String(s || '').split('-').map(Number);
+  return new Date(y, mo - 1, d);
+}
 function parseRange(str) {
   if (!str) return null;
-  // Try YYYY-MM-DD ถึง YYYY-MM-DD
   const m = str.match(/(\d{4}-\d{2}-\d{2})\s*(?:ถึง|to|-)\s*(\d{4}-\d{2}-\d{2})/);
-  if (m) return { start: new Date(m[1]), end: new Date(m[2]) };
-  return null;
+  if (!m) return null;
+  return { start: localDate(m[1]), end: localDate(m[2]) };
 }
 
 function parseRangeToInputs(str) {
@@ -5074,10 +5072,22 @@ async function previewArchive() {
       el.innerHTML = monthHdr + '<p style="font-size:13px;color:var(--gray4)">ไม่มี Elective ที่สิ้นสุดในเดือนนี้</p>';
       hide('btn-archive-delete');
     } else {
-      const list = d.electives.map(e =>
-        `<div style="font-size:12px;padding:3px 0">• ${escapeHtml(e.name)} (${escapeHtml(e.level||'—')}) — ${escapeHtml(e.date_range||'')}</div>`
-      ).join('');
-      el.innerHTML = monthHdr + `<p style="font-size:13px;font-weight:600;margin-bottom:8px">พบ ${d.count} คน ที่จะถูกลบ:</p>${list}`;
+      const hasEarlyPeriod = d.electives.some(e => e.has_early_period);
+      const earlyWarn = hasEarlyPeriod
+        ? `<p style="font-size:12px;background:#fff8e1;border:1px solid #f59e0b;border-radius:6px;padding:6px 10px;margin-bottom:8px">
+            ⚠️ มีเด็กที่มีช่วงที่ 1 อยู่ในเดือนก่อนหน้า — record ทั้งหมดจะถูกลบพร้อมกัน (รวมถึงข้อมูลช่วงที่ 1 ด้วย)
+           </p>`
+        : '';
+      const list = d.electives.map(e => {
+        const r2line = e.date_range2
+          ? ` <span style="color:var(--gray4)">/ ${escapeHtml(e.date_range2)}</span>`
+          : '';
+        const warnIcon = e.has_early_period
+          ? ` <span title="ช่วงที่ 1 อยู่ในเดือนก่อนหน้า" style="color:#f59e0b">⚠️</span>`
+          : '';
+        return `<div style="font-size:12px;padding:3px 0">• ${escapeHtml(e.name)} (${escapeHtml(e.level||'—')}) — ${escapeHtml(e.date_range||'')}${r2line}${warnIcon}</div>`;
+      }).join('');
+      el.innerHTML = monthHdr + earlyWarn + `<p style="font-size:13px;font-weight:600;margin-bottom:8px">พบ ${d.count} คน ที่จะถูกลบ:</p>${list}`;
       show('btn-archive-delete');
     }
     show('archive-preview');

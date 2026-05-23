@@ -639,7 +639,20 @@ async function archivePreview(targetMonth, db) {
   const month = String(targetMonth || '').trim();
   if (!/^(\d{4})-(\d{2})$/.test(month)) return { count: 0, electives: [] };
   const { rows } = await db.execute(`SELECT id, name, level, from_hospital, date_range, date_range2 FROM electives`);
-  const matched = rows.filter(e => electiveEndsInMonth(e, month));
+  const matched = rows
+    .filter(e => electiveEndsInMonth(e, month))
+    .map(e => {
+      // flag เมื่อ period 1 จบก่อนเดือนที่ archive → admin ควรทราบว่าช่วงที่ 1 จะถูกลบด้วย
+      const r1 = parseDateRange(e.date_range);
+      let has_early_period = false;
+      if (r1 && e.date_range2) {
+        const p1EndYm = new Date(r1.end)
+          .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
+          .slice(0, 7);
+        has_early_period = p1EndYm < month;
+      }
+      return { ...e, has_early_period };
+    });
   return { count: matched.length, electives: matched };
 }
 async function archiveAndDeleteMonth(targetMonth, db) {
@@ -665,7 +678,11 @@ async function archiveAndDeleteMonth(targetMonth, db) {
     args: [`ES_${month}`, month, toArchive.length, JSON.stringify(byLevel), JSON.stringify(byHospital)],
   });
   for (const e of toArchive) {
-    await db.execute({ sql:`DELETE FROM opd_calendar WHERE elective_ids LIKE ?`, args:[`%${e.id}%`] });
+    // ลบเฉพาะ OPD entries ของเดือนที่ archive เท่านั้น (ป้องกันลบ OPD ข้ามเดือนโดยไม่ตั้งใจ)
+    await db.execute({
+      sql: `DELETE FROM opd_calendar WHERE elective_ids LIKE ? AND strftime('%Y-%m', date) = ?`,
+      args: [`%${e.id}%`, month],
+    });
     await db.execute({ sql:`DELETE FROM electives WHERE id=?`, args:[e.id] });
   }
   return { success: true, deleted: toArchive.length, stats_saved: true };
