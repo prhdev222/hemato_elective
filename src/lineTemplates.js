@@ -157,21 +157,23 @@ function mergeChiefSlots(list, periodStart, periodEnd) {
     : list;
   const active = overlapping.length ? overlapping : list;
   if (active.length === 1) return active[0];
-  // Multiple chiefs — merge names and LINE links
-  const names = active.map(c => {
+  // Multiple chiefs — each entry gets its own LINE ID inline
+  const fmtL = s => { const v = String(s||'').trim(); return v && !v.startsWith('@') && !v.startsWith('http') ? `@${v}` : v; };
+  const lines = active.map(c => {
     const n = String(c.chief_name || '').trim() || '—';
+    let entry = n;
     if (c.date_from || c.date_to) {
       const from = c.date_from ? formatThaiDate(c.date_from) : '';
       const to   = c.date_to   ? formatThaiDate(c.date_to)   : '';
       const range = from && to ? `${from}–${to}` : from || to;
-      return range ? `${n} (${range})` : n;
+      if (range) entry = `${n} (${range})`;
     }
-    return n;
-  }).join(' / ');
-  const links = active.filter(c => c.chief_line_id).map(c => c.chief_line_id).join('\n👉 ');
+    const line = fmtL(c.chief_line_id);
+    return line ? `• ${entry}\n  👉 ${line}` : `• ${entry}`;
+  });
   return {
-    chief_name:     names,
-    chief_line_id:  links,
+    chief_name:     '\n' + lines.join('\n'),
+    chief_line_id:  '',
     supervise_list: active[0].supervise_list || '',
   };
 }
