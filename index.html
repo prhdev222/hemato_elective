@@ -1805,6 +1805,9 @@ let state = {
   publicSettings: [], // settings ที่เปิดให้ดูได้ (เช่น pdf_manual_url)
 };
 const _chiefsByMonthCache = {};
+// In-flight Promise for the initial public_settings fetch — shared between
+// bootstrapPublicSettingsAndLiff() and loadPage() to avoid a double round-trip.
+let _publicSettingsBootstrap = null;
 
 // ── Init ─────────────────────────────────────────────────────
 function getLiffIdFromPublicSettings() {
@@ -1840,7 +1843,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 async function bootstrapPublicSettingsAndLiff() {
   try {
-    const pub = await apiGet('action=public_settings');
+    // Store the Promise before awaiting so loadPage() can reuse it
+    _publicSettingsBootstrap = apiGet('action=public_settings');
+    const pub = await _publicSettingsBootstrap;
     if (pub?.success && Array.isArray(pub.data)) {
       state.publicSettings = pub.data;
       applyManualLink();
@@ -1986,9 +1991,11 @@ async function loadPage() {
   show('loader');
   try {
     const m = state.month;
+    // Reuse the in-flight bootstrap Promise if public_settings hasn't loaded yet,
+    // to avoid a double round-trip when bootstrap and loadPage race on startup.
     const publicSettingsReq = state.publicSettings.length
       ? Promise.resolve({ success: true, data: state.publicSettings })
-      : apiGet(`action=public_settings`);
+      : (_publicSettingsBootstrap || apiGet('action=public_settings'));
     // ใช้ allSettled เพื่อให้แต่ละ request fail แยกกันได้โดยไม่หยุดทั้งหมด
     const [calRes, supRes, elcRes, chiefRes, holRes, pubSetRes, crRes] = await Promise.allSettled([
       apiGet(`action=calendar&month=${m}`),
@@ -4020,22 +4027,29 @@ function wardToCodeForElective(ward) {
   return '';
 }
 
+// Cache stores resolved values OR in-flight Promises — callers always await the entry.
+// This prevents thundering-herd: concurrent callers for the same month share one fetch.
 async function getChiefsForMonthClient(monthYyyyMm) {
   const m = String(monthYyyyMm || '').trim();
   if (!m) return {};
-  if (_chiefsByMonthCache[m]) return _chiefsByMonthCache[m];
+  if (m in _chiefsByMonthCache) return _chiefsByMonthCache[m]; // resolved value or Promise
   if (m === state.month && state.chiefs && (state.chiefs.male || state.chiefs.female)) {
     _chiefsByMonthCache[m] = state.chiefs;
     return state.chiefs;
   }
-  try {
-    const res = await apiGet(`action=chiefs&month=${encodeURIComponent(m)}`);
-    const indexed = indexChiefs(res?.data || []);
-    _chiefsByMonthCache[m] = indexed;
-    return indexed;
-  } catch (_) {
-    return {};
-  }
+  // Store the Promise immediately so concurrent callers share it
+  const promise = apiGet(`action=chiefs&month=${encodeURIComponent(m)}`)
+    .then(res => {
+      const indexed = indexChiefs(res?.data || []);
+      _chiefsByMonthCache[m] = indexed; // replace Promise with resolved value
+      return indexed;
+    })
+    .catch(() => {
+      delete _chiefsByMonthCache[m]; // allow retry on failure
+      return {};
+    });
+  _chiefsByMonthCache[m] = promise;
+  return promise;
 }
 
 async function resolveElectiveChiefsClient(e) {

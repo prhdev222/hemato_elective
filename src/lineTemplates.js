@@ -71,15 +71,22 @@ export const DEFAULT_TEMPLATES = {
 
 export const ELECTIVE_CALENDAR_URL_DEFAULT = 'https://hemato-elective.pages.dev/';
 
+// Module-level template cache — lives for the lifetime of the Worker isolate.
+// Per-request cache miss still hits Turso once per key, then is memoised.
+const _templateCache = new Map();
+
 export async function getTemplate(key, db) {
+  if (_templateCache.has(key)) return _templateCache.get(key);
+  let value = DEFAULT_TEMPLATES[key] || '';
   try {
     const { rows } = await db.execute({
       sql: `SELECT value FROM templates WHERE key=?`,
       args: [key],
     });
-    if (rows[0]?.value) return rows[0].value;
-  } catch { /* fallback */ }
-  return DEFAULT_TEMPLATES[key] || '';
+    if (rows[0]?.value) value = rows[0].value;
+  } catch { /* fallback to default */ }
+  _templateCache.set(key, value);
+  return value;
 }
 
 export async function getSetting(key, db) {
@@ -263,15 +270,17 @@ function displayLineForEn(line) {
 }
 
 async function buildChiefDetailEn(chief, db) {
-  const detailTpl = await getTemplate('bot_elective_chief_detail_en', db);
-  const name = await getChiefNameEn(chief, db);
   const lineRaw = String(chief?.chief_line_id || '').trim();
-  let lineBlock = '';
-  if (lineRaw) {
-    lineBlock = fill(await getTemplate('bot_elective_chief_line_en', db), {
-      line_display: displayLineForEn(lineRaw),
-    });
-  }
+  // Fetch detail template + chief name + (optional) line template all in parallel
+  const [detailTpl, name, lineBlock] = await Promise.all([
+    getTemplate('bot_elective_chief_detail_en', db),
+    getChiefNameEn(chief, db),
+    lineRaw
+      ? getTemplate('bot_elective_chief_line_en', db).then(tpl =>
+          fill(tpl, { line_display: displayLineForEn(lineRaw) })
+        )
+      : Promise.resolve(''),
+  ]);
   return fill(detailTpl, {
     chief_name: name,
     line_block: lineBlock,
@@ -312,8 +321,10 @@ export async function buildElectiveOPDBlockEn(elective, db) {
       args: [`%${elective.id}%`],
     });
     if (!rows.length) return '';
-    const tplSolo = await getTemplate('bot_opd_calendar_line_solo_en', db);
-    const tplWith = await getTemplate('bot_opd_calendar_line_with_en', db);
+    const [tplSolo, tplWith] = await Promise.all([
+      getTemplate('bot_opd_calendar_line_solo_en', db),
+      getTemplate('bot_opd_calendar_line_with_en', db),
+    ]);
     const lines = rows.map(r => {
       const d = new Date(`${r.date}T12:00:00`);
       const dateEn = d.toLocaleDateString('en-GB', {
@@ -335,43 +346,59 @@ export async function buildElectiveOPDBlockEn(elective, db) {
 }
 
 async function buildElectiveReplyMessageEn(elective, db, chiefMonthYyyyMm = null) {
-  const { c1, c2 } = await resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm);
+  const hasP2 = String(elective.date_range2 || '').trim() && String(elective.ward2 || '').trim();
+
+  // Resolve all independent work in parallel
+  const [
+    { c1, c2 },
+    p1Tpl, p2Tpl, closingTpl, tpl,
+    pdfRaw, calRaw,
+    opdBlock,
+  ] = await Promise.all([
+    resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm),
+    getTemplate('bot_elective_period1_block_en', db),
+    hasP2 ? getTemplate('bot_elective_period2_block_en', db) : Promise.resolve(''),
+    getTemplate('bot_elective_closing_en', db),
+    getTemplate('bot_elective_reply_en', db),
+    getSetting('pdf_manual_url', db),
+    getSetting('elective_calendar_url', db),
+    buildElectiveOPDBlockEn(elective, db),
+  ]);
 
   const displayName =
     String(elective.name_en || '').trim() || String(elective.name || '').trim() || '—';
 
-  const chiefDetail1 = await buildChiefDetailEn(c1, db);
-  const period1_block_en = fill(await getTemplate('bot_elective_period1_block_en', db), {
+  // Build both chief details in parallel now that c1/c2 are resolved
+  const [chiefDetail1, chiefDetail2] = await Promise.all([
+    buildChiefDetailEn(c1, db),
+    hasP2 ? buildChiefDetailEn(c2, db) : Promise.resolve(''),
+  ]);
+
+  const period1_block_en = fill(p1Tpl, {
     period1_dates_en: formatEnglishElectiveRange(elective.date_range),
     ward1_en: formatWardEn(elective.ward),
     chief_detail1: chiefDetail1,
   });
 
-  let period2_block_en = '';
-  if (String(elective.date_range2 || '').trim() && String(elective.ward2 || '').trim()) {
-    period2_block_en = fill(await getTemplate('bot_elective_period2_block_en', db), {
-      period2_dates_en: formatEnglishElectiveRange(elective.date_range2),
-      ward2_en: formatWardEn(elective.ward2),
-      chief_detail2: await buildChiefDetailEn(c2, db),
-    });
-  }
+  const period2_block_en = hasP2
+    ? fill(p2Tpl, {
+        period2_dates_en: formatEnglishElectiveRange(elective.date_range2),
+        ward2_en: formatWardEn(elective.ward2),
+        chief_detail2: chiefDetail2,
+      })
+    : '';
 
-  const opdBlock = await buildElectiveOPDBlockEn(elective, db);
   const opd_section_en = opdBlock ? `\n${opdBlock}\n` : '\n';
+  const pdf = pdfRaw.trim() || '(Not configured)';
+  const elective_calendar_url = calRaw.trim() || ELECTIVE_CALENDAR_URL_DEFAULT;
 
-  const closing_wish = await getTemplate('bot_elective_closing_en', db);
-  const pdf = (await getSetting('pdf_manual_url', db)).trim() || '(Not configured)';
-  const calRaw = (await getSetting('elective_calendar_url', db)).trim();
-  const elective_calendar_url = calRaw || ELECTIVE_CALENDAR_URL_DEFAULT;
-
-  const tpl = await getTemplate('bot_elective_reply_en', db);
   return fill(tpl, {
     display_name: displayName,
     level: elective.level || '—',
     period1_block_en,
     period2_block_en,
     opd_section_en,
-    closing_wish,
+    closing_wish: closingTpl,
     pdf_manual_url: pdf,
     elective_calendar_url,
   });

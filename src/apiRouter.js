@@ -263,10 +263,11 @@ async function runElectivePreview(searchParams, db) {
       },
     });
   }
-  const threshold = parseInt((await getSetting('fuzzy_threshold', db)) || '90', 10) || 90;
-  const { rows: electives } = await db.execute(
-    `SELECT * FROM electives WHERE status IS NULL OR status != 'deleted' ORDER BY name`
-  );
+  const [thresholdRaw, { rows: electives }] = await Promise.all([
+    getSetting('fuzzy_threshold', db),
+    db.execute(`SELECT * FROM electives WHERE status IS NULL OR status != 'deleted' ORDER BY name`),
+  ]);
+  const threshold = parseInt(thresholdRaw || '90', 10) || 90;
   const eMatch = findDoctorByName(qIn, electives, threshold);
   if (!eMatch?.doctor) {
     const first = words[0] || qIn;
@@ -333,15 +334,26 @@ async function saveLineOaSettings(payload, db) {
   return { success: true };
 }
 async function getPublicSettings(db, env) {
-  const keys = ['pdf_manual_url', 'elective_calendar_url', 'calendar_public_view'];
-  const [settingValues, lo] = await Promise.all([
-    Promise.all(keys.map(k => getSetting(k, db))),
-    getLineOaSettings(db),
-  ]);
-  const result = keys.map((key, i) => ({ key, value: settingValues[i] }));
-  result.push({ key: 'line_oa_welcome', value: lo.welcome });
-  result.push({ key: 'line_oa_sheet_url', value: lo.sheet_url });
-  result.push({ key: 'line_oa_add_friend_url', value: lo.add_friend_url });
+  // Fetch all 6 settings in one round-trip instead of 6 individual queries
+  const allKeys = [
+    'pdf_manual_url', 'elective_calendar_url', 'calendar_public_view',
+    'line_oa_welcome', 'line_oa_sheet_url', 'line_oa_add_friend_url',
+  ];
+  const placeholders = allKeys.map(() => '?').join(',');
+  const { rows } = await db.execute({
+    sql: `SELECT key, value FROM settings WHERE key IN (${placeholders})`,
+    args: allKeys,
+  });
+  const byKey = Object.fromEntries(rows.map(r => [r.key, r.value || '']));
+
+  const result = [
+    { key: 'pdf_manual_url',         value: byKey['pdf_manual_url']         || '' },
+    { key: 'elective_calendar_url',  value: byKey['elective_calendar_url']  || '' },
+    { key: 'calendar_public_view',   value: byKey['calendar_public_view']   || '' },
+    { key: 'line_oa_welcome',        value: byKey['line_oa_welcome']        || '' },
+    { key: 'line_oa_sheet_url',      value: byKey['line_oa_sheet_url']      || LINE_OA_DEFAULT_SHEET },
+    { key: 'line_oa_add_friend_url', value: byKey['line_oa_add_friend_url'] || LINE_OA_DEFAULT_ADD_FRIEND },
+  ];
   const liffId = typeof env?.LIFF_ID === 'string' ? env.LIFF_ID.trim() : '';
   result.push({ key: 'liff_id', value: liffId });
   return result;
