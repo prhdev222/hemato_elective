@@ -392,15 +392,13 @@ async function getChiefs(month, db) {
   const monthEnd = `${month}-${String(lastDay).padStart(2, '0')}`;
   const { rows } = await db.execute({
     sql: `SELECT * FROM chiefs
-          WHERE month=?
-             OR (date_from IS NOT NULL AND date_to IS NOT NULL
+          WHERE (date_from IS NOT NULL AND date_to IS NOT NULL
                  AND date_from <= ? AND date_to >= ?)
+             OR (date_from IS NULL AND date_to IS NULL AND month=?)
           ORDER BY ward_code, id`,
-    args: [month, monthEnd, monthStart],
+    args: [monthEnd, monthStart, month],
   });
-  // deduplicate (a row can match both conditions)
-  const seen = new Set();
-  return rows.filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
+  return rows;
 }
 async function getUsers(db) {
   const { rows } = await db.execute(`SELECT id, name, role, active FROM users ORDER BY name`);

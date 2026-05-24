@@ -135,9 +135,17 @@ export function formatThaiRange(rangeText) {
 }
 
 export async function getChiefsForMonth(db, monthYyyyMm) {
+  const [y, mo] = monthYyyyMm.split('-').map(Number);
+  const monthStart = `${monthYyyyMm}-01`;
+  const lastDay = new Date(y, mo, 0).getDate();
+  const monthEnd = `${monthYyyyMm}-${String(lastDay).padStart(2, '0')}`;
   const { rows } = await db.execute({
-    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code, id`,
-    args: [monthYyyyMm],
+    sql: `SELECT * FROM chiefs
+          WHERE (date_from IS NOT NULL AND date_to IS NOT NULL
+                 AND date_from <= ? AND date_to >= ?)
+             OR (date_from IS NULL AND date_to IS NULL AND month=?)
+          ORDER BY ward_code, id`,
+    args: [monthEnd, monthStart, monthYyyyMm],
   });
   const r = { male: [], female: [] };
   for (const c of rows) {
