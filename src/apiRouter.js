@@ -386,11 +386,21 @@ async function getElectives(status, db) {
   return rows;
 }
 async function getChiefs(month, db) {
+  const [y, mo] = month.split('-').map(Number);
+  const monthStart = `${month}-01`;
+  const lastDay = new Date(y, mo, 0).getDate();
+  const monthEnd = `${month}-${String(lastDay).padStart(2, '0')}`;
   const { rows } = await db.execute({
-    sql: `SELECT * FROM chiefs WHERE month=? ORDER BY ward_code, id`,
-    args: [month],
+    sql: `SELECT * FROM chiefs
+          WHERE month=?
+             OR (date_from IS NOT NULL AND date_to IS NOT NULL
+                 AND date_from <= ? AND date_to >= ?)
+          ORDER BY ward_code, id`,
+    args: [month, monthEnd, monthStart],
   });
-  return rows;
+  // deduplicate (a row can match both conditions)
+  const seen = new Set();
+  return rows.filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
 }
 async function getUsers(db) {
   const { rows } = await db.execute(`SELECT id, name, role, active FROM users ORDER BY name`);

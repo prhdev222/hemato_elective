@@ -2410,12 +2410,44 @@ function downloadWardScheduleCSV() {
 }
 
 function renderChiefs() {
-  const maleList   = state.chiefs['male']   || [];
-  const femaleList = state.chiefs['female'] || [];
-  setText('chief-male-name',   allChiefsDisplay(maleList));
-  setText('chief-male-sup',    superviseListDisplay((maleList[0]  || {}).supervise_list));
-  setText('chief-female-name', allChiefsDisplay(femaleList));
-  setText('chief-female-sup',  superviseListDisplay((femaleList[0] || {}).supervise_list));
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const [y, m] = state.month.split('-').map(Number);
+  const monthStart = `${state.month}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const monthEnd = `${state.month}-${String(lastDay).padStart(2,'0')}`;
+
+  ['male','female'].forEach(ward => {
+    const list = (state.chiefs[ward] || []).filter(c => c.chief_name);
+    const nameEl = document.getElementById(`chief-${ward}-name`);
+    const supEl  = document.getElementById(`chief-${ward}-sup`);
+
+    if (!list.length) {
+      nameEl.textContent = '—';
+    } else {
+      const html = list.map(c => {
+        const name = escapeHtml(chiefResidentDisplayNameForLang(c, _lang));
+        const isActive = today >= monthStart && today <= monthEnd &&
+                         (!c.date_from || c.date_from <= today) &&
+                         (!c.date_to   || c.date_to   >= today);
+        const crossStart = c.date_from && c.date_from < monthStart;
+        const crossEnd   = c.date_to   && c.date_to   > monthEnd;
+        let badge = '';
+        if (crossStart && crossEnd) badge = ' <span style="font-size:10px;color:#7c4dff;font-weight:600">◀▶ข้ามเดือน</span>';
+        else if (crossStart)        badge = ' <span style="font-size:10px;color:#e67e22;font-weight:600">◀ต่อจากก่อนหน้า</span>';
+        else if (crossEnd)          badge = ' <span style="font-size:10px;color:#2980b9;font-weight:600">▶ต่อเดือนหน้า</span>';
+        let dateLabel = '';
+        if (c.date_from || c.date_to) {
+          const from = c.date_from ? formatShortDateTH(c.date_from) : '...';
+          const to   = c.date_to   ? formatShortDateTH(c.date_to)   : '...';
+          dateLabel = ` <span style="font-size:10px;color:var(--gray4)">(${escapeHtml(from)}–${escapeHtml(to)})</span>`;
+        }
+        const wt = isActive ? 'font-weight:700' : 'color:var(--gray4)';
+        return `<span style="${wt}">${name}${dateLabel}${badge}</span>`;
+      }).join('<br>');
+      nameEl.innerHTML = html;
+    }
+    supEl.textContent = superviseListDisplay((list[0] || {}).supervise_list);
+  });
 }
 
 // ── Thai Public Holidays + DB holidays ───────────────────────
@@ -3713,16 +3745,34 @@ function renderChiefSlotsList(wardCode) {
     el.innerHTML = '<p style="font-size:12px;color:var(--gray4);margin:4px 0 8px">ยังไม่มี Chief — เพิ่มได้ด้านล่าง</p>';
     return;
   }
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const [y, mo] = state.month.split('-').map(Number);
+  const monthStart = `${state.month}-01`;
+  const lastDay = new Date(y, mo, 0).getDate();
+  const monthEnd = `${state.month}-${String(lastDay).padStart(2,'0')}`;
+
   el.innerHTML = slots.map(c => {
     const name = escapeHtml(c.chief_name || '—');
+    const isToday = (!c.date_from || c.date_from <= today) && (!c.date_to || c.date_to >= today);
+    const crossStart = c.date_from && c.date_from < monthStart;
+    const crossEnd   = c.date_to   && c.date_to   > monthEnd;
+
     let dateLabel = '';
     if (c.date_from || c.date_to) {
       const from = c.date_from ? formatShortDateTH(c.date_from) : '...';
       const to   = c.date_to   ? formatShortDateTH(c.date_to)   : '...';
       dateLabel = `<span style="color:var(--gray4);font-size:11px;margin-left:6px">${escapeHtml(from)} – ${escapeHtml(to)}</span>`;
     }
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:4px;background:#fff;border:1px solid var(--gray2);border-radius:6px">
-      <span style="flex:1;font-size:13px;font-weight:600">${name}${dateLabel}</span>
+
+    let badge = '';
+    if (crossStart) badge += `<span style="font-size:10px;background:#fff3e0;color:#e67e22;border-radius:4px;padding:1px 5px;margin-left:4px">◀ จากเดือน ${escapeHtml(c.date_from.slice(0,7))}</span>`;
+    if (crossEnd)   badge += `<span style="font-size:10px;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 5px;margin-left:4px">▶ ถึงเดือน ${escapeHtml(c.date_to.slice(0,7))}</span>`;
+    if (isToday)    badge += `<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 5px;margin-left:4px">● วันนี้</span>`;
+
+    const borderColor = isToday ? '#4caf50' : 'var(--gray2)';
+    const bg = isToday ? '#f1f8f2' : '#fff';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:${bg};border:1px solid ${borderColor};border-radius:6px">
+      <span style="flex:1;font-size:13px;font-weight:600">${name}${dateLabel}${badge}</span>
       <button class="btn-icon btn-sm" title="ลบ" onclick="deleteChiefSlot('${escapeHtml(c.id)}','${escapeHtml(wardCode)}')">🗑️</button>
     </div>`;
   }).join('');
@@ -3740,8 +3790,10 @@ async function addChiefSlot() {
   const existingSlots = state.chiefs[wardCode] || [];
   const supList = existingSlots[0]?.supervise_list || '';
 
+  // Save under the month of date_from; fall back to currently-viewed month
+  const month = dateFrom ? dateFrom.slice(0, 7) : state.month;
   const data = {
-    month:          state.month,
+    month,
     ward_code:      wardCode,
     chief_name:     chiefName,
     chief_line_id:  resident?.line_id || '',
