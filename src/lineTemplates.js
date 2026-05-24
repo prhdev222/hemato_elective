@@ -27,13 +27,12 @@ export const DEFAULT_TEMPLATES = {
   bot_elective_period1_block:
     '🟦 ช่วงที่ 1 ({{period1_dates}})\n' +
     '🏥 วอร์ด: {{ward1}}\n' +
-    '👑 Chief (ติดต่อเพื่อราวด์วอร์ดช่วงที่ 1): {{chief1_name}} {{chief1_line}}\n' +
-    '👨‍⚕️ อาจารย์ที่ต้องราวด์ด้วย: {{supervise1_list}}',
+    '👑 Chief: {{chief1_name}} line ID : {{chief1_line}} \n' +
+    '(กรุณา add line เพื่อติดต่อเวลา/สถานที่ราวด์วอร์ด)\n\n',
   bot_elective_period2_block:
     '\n\n🟧 ช่วงที่ 2 ({{period2_dates}})\n' +
     '🏥 วอร์ด: {{ward2}}\n' +
-    '👑 Chief: {{chief2_name}} {{chief2_line}}\n' +
-    '👨‍⚕️ อาจารย์ที่ต้องราวด์ด้วย: {{supervise2_list}}',
+    '👑 Chief: {{chief2_name}} {{chief2_line}}\n\n',
 
   // ── Elective reply (English) — ใช้เมื่อผู้ใช้พิมพ์เป็นภาษาอังกฤษ หรือ elective เป็นชื่อ EN / มี name_en ──
   bot_elective_reply_en:
@@ -57,8 +56,6 @@ export const DEFAULT_TEMPLATES = {
     '👑 Chief: {{chief_name}}{{line_block}}',
   bot_elective_chief_line_en:
     '\n📱 LINE ID: {{line_display}}\n(Please add LINE to coordinate the ward round time and location.)',
-  bot_elective_chief_attending_en:
-    '\n👨‍⚕️ Attending physician for rounds: {{supervise_list}}',
   bot_opd_calendar_block_en:
     '🏥 OPD Schedule\n{{opd_lines_en}}',
   bot_opd_calendar_line_solo_en:
@@ -282,25 +279,13 @@ async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = nu
     .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
     .slice(0, 7);
 
-  // Returns supervise_list from the month-specific WS_ row (null dates, empty name).
-  // Prefers WS_ rows over legacy C_ placeholder rows.
-  function getSupervise(chiefsByWard, wardCode) {
-    const nullDates = (chiefsByWard?.[wardCode] || []).filter(
-      c => !String(c.chief_name || '').trim() && !c.date_from && !c.date_to
-    );
-    const row = nullDates.find(c => String(c.id || '').startsWith('WS_')) || nullDates[0];
-    return row?.supervise_list || '';
-  }
-
   if (chiefMonthYyyyMm) {
     const chiefs = await getChiefsForMonth(db, chiefMonthYyyyMm);
     const p1 = parsePeriodDates(elective?.date_range);
     const p2 = parsePeriodDates(elective?.date_range2);
-    const c1raw = ward1Code ? mergeChiefSlots(chiefs[ward1Code], p1.start, p1.end) : null;
-    const c2raw = ward2Code ? mergeChiefSlots(chiefs[ward2Code], p2.start, p2.end) : null;
     return {
-      c1: c1raw ? { ...c1raw, supervise_list: getSupervise(chiefs, ward1Code) } : null,
-      c2: c2raw ? { ...c2raw, supervise_list: getSupervise(chiefs, ward2Code) } : null,
+      c1: ward1Code ? mergeChiefSlots(chiefs[ward1Code], p1.start, p1.end) : null,
+      c2: ward2Code ? mergeChiefSlots(chiefs[ward2Code], p2.start, p2.end) : null,
     };
   }
 
@@ -329,16 +314,9 @@ async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = nu
     return out;
   }
 
-  const c1raw = ward1Code ? mergeChiefSlots(mergedFor(ward1Code, month1Start, month1End), p1.start, p1.end) : null;
-  const c2raw = ward2Code ? mergeChiefSlots(mergedFor(ward2Code, month2Start, month2End), p2.start, p2.end) : null;
-
-  // Supervise comes from the month-specific WS_ row of the period's end-month (main month)
-  const sup1 = ward1Code ? (getSupervise(byMonth[month1End], ward1Code) || getSupervise(byMonth[month1Start], ward1Code)) : '';
-  const sup2 = ward2Code ? (getSupervise(byMonth[month2End], ward2Code) || getSupervise(byMonth[month2Start], ward2Code)) : '';
-
   return {
-    c1: c1raw ? { ...c1raw, supervise_list: sup1 || c1raw.supervise_list } : null,
-    c2: c2raw ? { ...c2raw, supervise_list: sup2 || c2raw.supervise_list } : null,
+    c1: ward1Code ? mergeChiefSlots(mergedFor(ward1Code, month1Start, month1End), p1.start, p1.end) : null,
+    c2: ward2Code ? mergeChiefSlots(mergedFor(ward2Code, month2Start, month2End), p2.start, p2.end) : null,
   };
 }
 
