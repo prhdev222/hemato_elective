@@ -2096,9 +2096,10 @@ function allChiefsDisplay(list) {
 }
 
 // Returns the month-specific supervise-only row (null dates, empty name).
-// This row holds supervise_list independently of cross-month chief date ranges.
+// Prefers the stable WS_ row over legacy C_ placeholder rows.
 function getSuperviseRow(list) {
-  return (list || []).find(c => !String(c.chief_name || '').trim() && !c.date_from && !c.date_to) || {};
+  const nullDates = (list || []).filter(c => !String(c.chief_name || '').trim() && !c.date_from && !c.date_to);
+  return nullDates.find(c => String(c.id || '').startsWith('WS_')) || nullDates[0] || {};
 }
 
 // Returns the chief active on dateStr (default: today) from a list of chief slots.

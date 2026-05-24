@@ -282,11 +282,13 @@ async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = nu
     .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
     .slice(0, 7);
 
-  // Returns supervise_list from the month-specific WS_ row (null dates, empty name)
+  // Returns supervise_list from the month-specific WS_ row (null dates, empty name).
+  // Prefers WS_ rows over legacy C_ placeholder rows.
   function getSupervise(chiefsByWard, wardCode) {
-    const row = (chiefsByWard?.[wardCode] || []).find(
+    const nullDates = (chiefsByWard?.[wardCode] || []).filter(
       c => !String(c.chief_name || '').trim() && !c.date_from && !c.date_to
     );
+    const row = nullDates.find(c => String(c.id || '').startsWith('WS_')) || nullDates[0];
     return row?.supervise_list || '';
   }
 
