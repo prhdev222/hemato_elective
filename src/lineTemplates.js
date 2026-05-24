@@ -282,13 +282,23 @@ async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = nu
     .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
     .slice(0, 7);
 
+  // Returns supervise_list from the month-specific WS_ row (null dates, empty name)
+  function getSupervise(chiefsByWard, wardCode) {
+    const row = (chiefsByWard?.[wardCode] || []).find(
+      c => !String(c.chief_name || '').trim() && !c.date_from && !c.date_to
+    );
+    return row?.supervise_list || '';
+  }
+
   if (chiefMonthYyyyMm) {
     const chiefs = await getChiefsForMonth(db, chiefMonthYyyyMm);
     const p1 = parsePeriodDates(elective?.date_range);
     const p2 = parsePeriodDates(elective?.date_range2);
+    const c1raw = ward1Code ? mergeChiefSlots(chiefs[ward1Code], p1.start, p1.end) : null;
+    const c2raw = ward2Code ? mergeChiefSlots(chiefs[ward2Code], p2.start, p2.end) : null;
     return {
-      c1: ward1Code ? mergeChiefSlots(chiefs[ward1Code], p1.start, p1.end) : null,
-      c2: ward2Code ? mergeChiefSlots(chiefs[ward2Code], p2.start, p2.end) : null,
+      c1: c1raw ? { ...c1raw, supervise_list: getSupervise(chiefs, ward1Code) } : null,
+      c2: c2raw ? { ...c2raw, supervise_list: getSupervise(chiefs, ward2Code) } : null,
     };
   }
 
@@ -317,9 +327,16 @@ async function resolveElectiveChiefsByPeriod(elective, db, chiefMonthYyyyMm = nu
     return out;
   }
 
+  const c1raw = ward1Code ? mergeChiefSlots(mergedFor(ward1Code, month1Start, month1End), p1.start, p1.end) : null;
+  const c2raw = ward2Code ? mergeChiefSlots(mergedFor(ward2Code, month2Start, month2End), p2.start, p2.end) : null;
+
+  // Supervise comes from the month-specific WS_ row of the period's end-month (main month)
+  const sup1 = ward1Code ? (getSupervise(byMonth[month1End], ward1Code) || getSupervise(byMonth[month1Start], ward1Code)) : '';
+  const sup2 = ward2Code ? (getSupervise(byMonth[month2End], ward2Code) || getSupervise(byMonth[month2Start], ward2Code)) : '';
+
   return {
-    c1: ward1Code ? mergeChiefSlots(mergedFor(ward1Code, month1Start, month1End), p1.start, p1.end) : null,
-    c2: ward2Code ? mergeChiefSlots(mergedFor(ward2Code, month2Start, month2End), p2.start, p2.end) : null,
+    c1: c1raw ? { ...c1raw, supervise_list: sup1 || c1raw.supervise_list } : null,
+    c2: c2raw ? { ...c2raw, supervise_list: sup2 || c2raw.supervise_list } : null,
   };
 }
 

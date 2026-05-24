@@ -559,24 +559,15 @@ async function deleteChief(id, db) {
   return { success: true };
 }
 async function saveWardSupervise(data, db) {
-  // Update supervise_list on all existing chief rows for this ward/month.
-  // If no rows exist yet, create a placeholder row so the supervisor list is not lost.
-  const { rows } = await db.execute({
-    sql: `SELECT id FROM chiefs WHERE month=? AND ward_code=?`,
-    args: [data.month, data.ward_code],
+  // Supervise is per-month, independent of date-range chiefs.
+  // Use a stable WS_ ID so one row per ward/month is guaranteed.
+  const id = `WS_${data.ward_code}_${data.month}`;
+  await db.execute({
+    sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id)
+          VALUES(?,?,?,'',?,'')
+          ON CONFLICT(id) DO UPDATE SET supervise_list=excluded.supervise_list`,
+    args: [id, data.month, data.ward_code, data.supervise_list||''],
   });
-  if (rows.length) {
-    await db.execute({
-      sql: `UPDATE chiefs SET supervise_list=? WHERE month=? AND ward_code=?`,
-      args: [data.supervise_list||'', data.month, data.ward_code],
-    });
-  } else {
-    const id = `C${Date.now()}`;
-    await db.execute({
-      sql: `INSERT INTO chiefs(id,month,ward_code,chief_name,supervise_list,chief_line_id) VALUES(?,?,?,?,?,?)`,
-      args: [id, data.month, data.ward_code, '', data.supervise_list||'', ''],
-    });
-  }
   return { success: true };
 }
 async function saveDoctor(data, db) {
