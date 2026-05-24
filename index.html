@@ -2424,9 +2424,10 @@ function renderChiefs() {
   const monthEnd = `${state.month}-${String(lastDay).padStart(2,'0')}`;
 
   ['male','female'].forEach(ward => {
-    const list = (state.chiefs[ward] || []).filter(c => c.chief_name);
-    const nameEl = document.getElementById(`chief-${ward}-name`);
-    const supEl  = document.getElementById(`chief-${ward}-sup`);
+    const allRows = state.chiefs[ward] || [];
+    const list    = allRows.filter(c => c.chief_name); // named rows only (for chief display)
+    const nameEl  = document.getElementById(`chief-${ward}-name`);
+    const supEl   = document.getElementById(`chief-${ward}-sup`);
 
     if (!list.length) {
       nameEl.textContent = '—';
@@ -2453,7 +2454,7 @@ function renderChiefs() {
       }).join('<br>');
       nameEl.innerHTML = html;
     }
-    supEl.textContent = superviseListDisplay(getSuperviseRow(list).supervise_list);
+    supEl.textContent = superviseListDisplay(getSuperviseRow(allRows).supervise_list);
   });
 }
 
