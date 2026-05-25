@@ -3959,6 +3959,7 @@ async function addSuperviseMonth() {
     toast(`บันทึก Supervise ${monthToThaiLabel(month)} แล้ว ✓`, 'success');
     // Uncheck all
     document.querySelectorAll('#sup-add-checkboxes input[type=checkbox]').forEach(cb => cb.checked = false);
+    delete _chiefsByMonthCache[month]; // invalidate cache for the saved month
     await reloadChiefsState();
     await reloadChiefModalData(wardCode);
     renderChiefs();
@@ -3971,6 +3972,9 @@ async function deleteSuperviseMonth(id, wardCode) {
     const res = await api({ action:'delete_chief', id }, true);
     if (!res.success) throw new Error(res.error);
     toast('ลบแล้ว ✓', 'success');
+    // id = WS_<ward>_<YYYY-MM> — extract month to invalidate cache
+    const deletedMonth = String(id).split('_').slice(2).join('_');
+    if (deletedMonth) delete _chiefsByMonthCache[deletedMonth];
     await reloadChiefsState();
     await reloadChiefModalData(wardCode);
     renderChiefs();
@@ -4089,6 +4093,7 @@ function printYearSummary() {
   const chiefHtml  = document.getElementById('ys-chief-table').innerHTML;
   const supHtml    = document.getElementById('ys-sup-table').innerHTML;
   const win = window.open('', '_blank');
+  if (!win) { toast('กรุณาอนุญาต popup ในเบราว์เซอร์เพื่อพิมพ์', 'error'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
     <title>สรุป Chief & Supervise ปี พ.ศ. ${beYear}</title>
     <style>
