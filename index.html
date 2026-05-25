@@ -875,6 +875,42 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   </div>
 </div>
 
+<!-- Year Summary -->
+<div class="overlay" id="modal-year-summary">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <h2>📊 สรุป Chief &amp; Supervise</h2>
+      <button class="close-btn" onclick="closeModal('modal-year-summary')">×</button>
+    </div>
+    <div class="modal-body" style="max-height:78vh;overflow-y:auto" id="ys-body">
+      <!-- Year picker -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button class="btn btn-outline btn-sm" onclick="shiftYearSummary(-1)">◀</button>
+        <span style="font-size:15px;font-weight:700" id="ys-year-label">—</span>
+        <button class="btn btn-outline btn-sm" onclick="shiftYearSummary(+1)">▶</button>
+        <span style="font-size:12px;color:var(--gray4)" id="ys-loading" style="display:none">กำลังโหลด…</span>
+      </div>
+
+      <!-- Chief table -->
+      <div style="margin-bottom:18px">
+        <div style="font-weight:700;font-size:13px;color:var(--gray5);margin-bottom:8px;letter-spacing:.4px">👑 CHIEF ทั้งปี</div>
+        <div id="ys-chief-table"></div>
+      </div>
+
+      <!-- Supervise table -->
+      <div>
+        <div style="font-weight:700;font-size:13px;color:var(--gray5);margin-bottom:8px;letter-spacing:.4px">👨‍⚕️ SUPERVISE รายเดือน</div>
+        <div id="ys-sup-table"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-year-summary')">ปิด</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadYearSummaryCSV()">📥 CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="printYearSummary()">🖨️ พิมพ์</button>
+    </div>
+  </div>
+</div>
+
 <!-- Users -->
 <div class="overlay" id="modal-users">
   <div class="modal">
@@ -1003,6 +1039,9 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
   </div>
 
   <!-- Chief cards -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+    <button class="btn btn-outline btn-sm" onclick="openYearSummary()" title="ดูสรุป Chief / Supervise ทั้งปี">📊 สรุปทั้งปี</button>
+  </div>
   <div class="chief-row">
     <div class="chief-card chief-card-male" id="chief-wrap-male" onclick="openWardSchedule('male')" title="คลิกดูตาราง Elective วอร์ดชาย">
       <h3><span id="chief-heading-male">♂ วอร์ดชาย</span> <span style="font-size:11px;font-weight:400;color:var(--navy2);margin-left:4px" data-i18n="ward_click">👆 คลิกดูตาราง</span>
@@ -3944,6 +3983,158 @@ async function reloadChiefsState() {
     state.chiefs = indexChiefs(res?.data || []);
     _chiefsByMonthCache[state.month] = state.chiefs;
   } catch { /* keep existing state */ }
+}
+
+// ── Year Summary ─────────────────────────────────────────────
+let _ysCeYear = new Date().getFullYear(); // CE year currently shown in year summary
+
+async function openYearSummary() {
+  _ysCeYear = new Date().getFullYear();
+  openModal('modal-year-summary');
+  await renderYearSummary();
+}
+
+function shiftYearSummary(delta) {
+  _ysCeYear += delta;
+  renderYearSummary();
+}
+
+async function renderYearSummary() {
+  const beYear = _ysCeYear + 543;
+  document.getElementById('ys-year-label').textContent = `ปี พ.ศ. ${beYear}  (ค.ศ. ${_ysCeYear})`;
+  document.getElementById('ys-chief-table').innerHTML  = '<p style="font-size:12px;color:var(--gray4)">กำลังโหลด…</p>';
+  document.getElementById('ys-sup-table').innerHTML    = '<p style="font-size:12px;color:var(--gray4)">กำลังโหลด…</p>';
+
+  // Load all rows for both wards in parallel
+  const [mRes, fRes] = await Promise.all([
+    apiGet(`action=chiefs_all&ward=male`).catch(() => ({ data: [] })),
+    apiGet(`action=chiefs_all&ward=female`).catch(() => ({ data: [] })),
+  ]);
+
+  const allRows = [
+    ...(mRes?.data || []).map(r => ({ ...r, _ward: 'male' })),
+    ...(fRes?.data || []).map(r => ({ ...r, _ward: 'female' })),
+  ];
+
+  const yearStr = String(_ysCeYear);
+
+  // ── Chief rows: rows with chief_name, filtered to this year ──
+  const chiefRows = allRows
+    .filter(r => r.chief_name && (
+      (r.date_from && r.date_from.startsWith(yearStr)) ||
+      (r.date_to   && r.date_to.startsWith(yearStr))   ||
+      (r.month     && r.month.startsWith(yearStr))
+    ))
+    .sort((a, b) => {
+      if (a._ward !== b._ward) return a._ward === 'male' ? -1 : 1;
+      return (a.date_from || a.month || '').localeCompare(b.date_from || b.month || '');
+    });
+
+  // ── WS_ rows: supervisor months filtered to this year ──
+  const supRows = allRows
+    .filter(r => String(r.id || '').startsWith('WS_') && String(r.month || '').startsWith(yearStr))
+    .sort((a, b) => {
+      if (a._ward !== b._ward) return a._ward === 'male' ? -1 : 1;
+      return (a.month || '').localeCompare(b.month || '');
+    });
+
+  // ── Render chief table ──
+  const TH_ROW = `<tr style="background:var(--gray1);font-size:12px">
+    <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--gray2)">Ward</th>
+    <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--gray2)">ช่วงวันที่</th>
+    <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--gray2)">Chief Resident</th>
+  </tr>`;
+  if (!chiefRows.length) {
+    document.getElementById('ys-chief-table').innerHTML = '<p style="font-size:12px;color:var(--gray4)">ยังไม่มีข้อมูล Chief ในปีนี้</p>';
+  } else {
+    const rows = chiefRows.map(r => {
+      const ward  = r._ward === 'male' ? '♂ วอร์ดชาย' : '♀ วอร์ดหญิง';
+      const from  = r.date_from ? formatShortDateTH(r.date_from) : '—';
+      const to    = r.date_to   ? formatShortDateTH(r.date_to)   : '—';
+      const range = (r.date_from || r.date_to) ? `${from} – ${to}` : (r.month ? monthToThaiLabel(r.month) : '—');
+      return `<tr style="font-size:13px;border-bottom:1px solid var(--gray1)">
+        <td style="padding:6px 10px;white-space:nowrap">${escapeHtml(ward)}</td>
+        <td style="padding:6px 10px;white-space:nowrap">${escapeHtml(range)}</td>
+        <td style="padding:6px 10px;font-weight:600">${escapeHtml(r.chief_name || '—')}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('ys-chief-table').innerHTML =
+      `<table style="width:100%;border-collapse:collapse;border:1px solid var(--gray2);border-radius:6px;overflow:hidden">${TH_ROW}${rows}</table>`;
+  }
+
+  // ── Render supervise table ──
+  const TH_SUP = `<tr style="background:var(--gray1);font-size:12px">
+    <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--gray2)">Ward</th>
+    <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--gray2)">เดือน</th>
+    <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--gray2)">อาจารย์ Supervise</th>
+  </tr>`;
+  if (!supRows.length) {
+    document.getElementById('ys-sup-table').innerHTML = '<p style="font-size:12px;color:var(--gray4)">ยังไม่มีข้อมูล Supervise ในปีนี้</p>';
+  } else {
+    const rows = supRows.map(r => {
+      const ward = r._ward === 'male' ? '♂ วอร์ดชาย' : '♀ วอร์ดหญิง';
+      return `<tr style="font-size:13px;border-bottom:1px solid var(--gray1)">
+        <td style="padding:6px 10px;white-space:nowrap">${escapeHtml(ward)}</td>
+        <td style="padding:6px 10px;white-space:nowrap;font-weight:600;color:var(--primary)">${escapeHtml(monthToThaiLabel(r.month))}</td>
+        <td style="padding:6px 10px">${escapeHtml(r.supervise_list || '—')}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('ys-sup-table').innerHTML =
+      `<table style="width:100%;border-collapse:collapse;border:1px solid var(--gray2);border-radius:6px;overflow:hidden">${TH_SUP}${rows}</table>`;
+  }
+}
+
+function printYearSummary() {
+  const beYear = _ysCeYear + 543;
+  const chiefHtml  = document.getElementById('ys-chief-table').innerHTML;
+  const supHtml    = document.getElementById('ys-sup-table').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>สรุป Chief & Supervise ปี พ.ศ. ${beYear}</title>
+    <style>
+      body{font-family:'Sarabun',sans-serif;font-size:13px;margin:20px}
+      h1{font-size:16px;margin-bottom:16px}
+      h2{font-size:13px;font-weight:700;margin:16px 0 8px;color:#444;text-transform:uppercase;letter-spacing:.4px}
+      table{width:100%;border-collapse:collapse;margin-bottom:16px}
+      th,td{padding:5px 10px;border:1px solid #ccc;text-align:left}
+      th{background:#f5f5f5;font-size:11px}
+      @page{margin:14mm}
+      @media print{button{display:none}}
+    </style></head><body>
+    <h1>📊 สรุป Chief &amp; Supervise — ปี พ.ศ. ${beYear} (ค.ศ. ${_ysCeYear})</h1>
+    <h2>👑 Chief ทั้งปี</h2>${chiefHtml}
+    <h2>👨‍⚕️ Supervise รายเดือน</h2>${supHtml}
+    </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
+function downloadYearSummaryCSV() {
+  const beYear = _ysCeYear + 543;
+  const rows = [];
+  rows.push(['ประเภท','Ward','ช่วงวันที่ / เดือน','Chief / อาจารย์']);
+
+  // Chief rows from table
+  document.querySelectorAll('#ys-chief-table table tr:not(:first-child)').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length >= 3)
+      rows.push(['Chief', cells[0].textContent.trim(), cells[1].textContent.trim(), cells[2].textContent.trim()]);
+  });
+  // Supervise rows from table
+  document.querySelectorAll('#ys-sup-table table tr:not(:first-child)').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length >= 3)
+      rows.push(['Supervise', cells[0].textContent.trim(), cells[1].textContent.trim(), cells[2].textContent.trim()]);
+  });
+
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `chief_supervise_${beYear}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ── Manage data ──────────────────────────────────────────────
