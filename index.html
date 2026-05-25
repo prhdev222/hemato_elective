@@ -798,21 +798,20 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
 
 <!-- Edit Chief -->
 <div class="overlay" id="modal-chief">
-  <div class="modal" style="max-width:560px">
+  <div class="modal" style="max-width:580px">
     <div class="modal-header">
       <h2 id="chief-modal-title">✏️ แก้ไข Chief / Supervise</h2>
       <button class="close-btn" onclick="closeModal('modal-chief')">×</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="max-height:78vh;overflow-y:auto">
       <input type="hidden" id="chief-ward-code">
 
-      <!-- Chief slots list -->
+      <!-- ── Chief section ── -->
       <div class="field">
-        <label>👑 Chief รายสัปดาห์</label>
+        <label>👑 CHIEF (ตามช่วงวันที่)</label>
         <div id="chief-slots-list" style="margin-bottom:8px"></div>
-        <!-- Add new slot form -->
         <div style="background:var(--gray1);border-radius:8px;padding:10px 12px">
-          <div style="font-size:11px;font-weight:700;color:var(--gray4);text-transform:uppercase;margin-bottom:8px">+ เพิ่ม Chief ช่วงวัน</div>
+          <div style="font-size:11px;font-weight:700;color:var(--gray4);text-transform:uppercase;margin-bottom:8px">+ เพิ่มช่วง Chief</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
             <div>
               <label style="font-size:11px;display:block;margin-bottom:2px">ตั้งแต่</label>
@@ -831,15 +830,47 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
         </div>
       </div>
 
-      <!-- Supervisor section -->
-      <div class="field" style="margin-top:4px">
-        <label>👨‍⚕️ Supervise อาจารย์ทั้งเดือน (Ctrl/Shift เพื่อเลือกหลายคน)</label>
-        <select id="chief-sup-sel" multiple class="multi-select"></select>
+      <!-- ── Supervise section ── -->
+      <div class="field" style="margin-top:14px">
+        <label>👨‍⚕️ SUPERVISE (รายเดือน)</label>
+
+        <!-- รายการที่บันทึกไว้แล้ว -->
+        <div id="chief-sup-list" style="margin-bottom:8px"></div>
+
+        <!-- ฟอร์มเพิ่มเดือนใหม่ -->
+        <div style="background:var(--gray1);border-radius:8px;padding:10px 12px">
+          <div style="font-size:11px;font-weight:700;color:var(--gray4);text-transform:uppercase;margin-bottom:8px">+ เพิ่มเดือน Supervise</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+            <div>
+              <label style="font-size:11px;display:block;margin-bottom:2px">เดือน</label>
+              <select id="sup-add-month" style="width:130px">
+                <option value="01">มกราคม</option>
+                <option value="02">กุมภาพันธ์</option>
+                <option value="03">มีนาคม</option>
+                <option value="04">เมษายน</option>
+                <option value="05">พฤษภาคม</option>
+                <option value="06">มิถุนายน</option>
+                <option value="07">กรกฎาคม</option>
+                <option value="08">สิงหาคม</option>
+                <option value="09">กันยายน</option>
+                <option value="10">ตุลาคม</option>
+                <option value="11">พฤศจิกายน</option>
+                <option value="12">ธันวาคม</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;display:block;margin-bottom:2px">ปี พ.ศ.</label>
+              <input type="number" id="sup-add-year-be" min="2560" max="2590" style="width:80px">
+            </div>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--gray4);margin-bottom:6px">เลือกอาจารย์ (คลิกเพื่อติ๊ก):</div>
+          <div id="sup-add-checkboxes" style="max-height:160px;overflow-y:auto;background:#fff;border:1px solid var(--gray2);border-radius:6px;padding:6px 10px"></div>
+          <button class="btn btn-outline btn-sm" onclick="addSuperviseMonth()" style="margin-top:8px;white-space:nowrap">➕ เพิ่มเดือนนี้</button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-chief')">ยกเลิก</button>
-      <button class="btn btn-success" onclick="saveWardSupervise()">💾 บันทึก Supervise</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-chief')">ปิด</button>
     </div>
   </div>
 </div>
@@ -1829,6 +1860,9 @@ let state = {
   publicSettings: [], // settings ที่เปิดให้ดูได้ (เช่น pdf_manual_url)
 };
 const _chiefsByMonthCache = {};
+// Modal-local state for the Chief/Supervise modal (all rows for one ward)
+let _chiefAllRows     = [];   // rows with chief_name or date range (non-WS_)
+let _superviseAllRows = [];   // WS_ rows (per-month supervisor lists)
 // In-flight Promise for the initial public_settings fetch — shared between
 // bootstrapPublicSettingsAndLiff() and loadPage() to avoid a double round-trip.
 let _publicSettingsBootstrap = null;
@@ -2073,6 +2107,12 @@ function indexChiefs(list) {
   return r;
 }
 
+const _MONTHS_TH_FULL = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+function monthToThaiLabel(yyyyMm) {
+  const [y, m] = String(yyyyMm || '').split('-').map(Number);
+  if (!y || !m) return yyyyMm || '';
+  return `${_MONTHS_TH_FULL[m] || ''} ${y + 543}`;
+}
 function formatShortDateTH(yyyyMmDd) {
   const s = String(yyyyMmDd || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -3716,20 +3756,20 @@ function fillRange(period) {
 }
 
 // ── Chief Modal ──────────────────────────────────────────────
-function openChiefModal(wardCode) {
+async function openChiefModal(wardCode) {
   document.getElementById('chief-ward-code').value = wardCode;
   const wLabel = t(wardCode === 'male' ? 'ward_label_male' : 'ward_label_female');
   setText('chief-modal-title', (_lang === 'en' ? '✏️ Edit Chief / Supervise — ' : '✏️ แก้ไข Chief / Supervise — ') + wLabel);
 
-  // Populate "add slot" resident dropdown
+  // Populate "add chief" resident dropdown
   const addSel = document.getElementById('chief-add-name');
   addSel.innerHTML = '<option value="">— เลือก —</option>' +
     state.residents.map(r => `<option value="${r.name}">${r.name} (${r.role||''})</option>`).join('');
 
-  // Set default date range for new slot: Monday–Sunday of current week
+  // Default dates: Monday–Sunday of current week
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const td = new Date(today + 'T12:00:00');
-  const dow = td.getDay(); // 0=Sun
+  const dow = td.getDay();
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
   const mon = new Date(td); mon.setDate(td.getDate() + mondayOffset);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
@@ -3737,56 +3777,88 @@ function openChiefModal(wardCode) {
   document.getElementById('chief-add-from').value = fmtIso(mon);
   document.getElementById('chief-add-to').value   = fmtIso(sun);
 
-  // Populate supervisor multi-select from the month-specific supervise row
-  const slots = state.chiefs[wardCode] || [];
-  const firstSup = (getSuperviseRow(slots).supervise_list || '').split(',').map(s => s.trim()).filter(Boolean);
-  const supSel = document.getElementById('chief-sup-sel');
-  supSel.innerHTML = state.supervisors.map(s =>
-    `<option value="${s.name}" ${firstSup.includes(s.name)?'selected':''}>${s.name}</option>`
-  ).join('');
+  // Default supervise month: current month in BE
+  const [cy, cm] = state.month.split('-').map(Number);
+  document.getElementById('sup-add-month').value   = String(cm).padStart(2, '0');
+  document.getElementById('sup-add-year-be').value = cy + 543;
 
-  renderChiefSlotsList(wardCode);
+  // Render supervisor checkbox list
+  renderSuperviseCheckboxes();
+
+  // Load ALL chief/supervise rows for this ward from API
   openModal('modal-chief');
+  await reloadChiefModalData(wardCode);
 }
 
 function renderChiefSlotsList(wardCode) {
-  const slots = (state.chiefs[wardCode] || []).filter(c => c.chief_name || c.date_from || c.date_to);
+  const slots = _chiefAllRows.filter(c => c.chief_name || c.date_from || c.date_to);
   const el = document.getElementById('chief-slots-list');
   if (!slots.length) {
     el.innerHTML = '<p style="font-size:12px;color:var(--gray4);margin:4px 0 8px">ยังไม่มี Chief — เพิ่มได้ด้านล่าง</p>';
     return;
   }
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const [y, mo] = state.month.split('-').map(Number);
-  const monthStart = `${state.month}-01`;
-  const lastDay = new Date(y, mo, 0).getDate();
-  const monthEnd = `${state.month}-${String(lastDay).padStart(2,'0')}`;
-
   el.innerHTML = slots.map(c => {
     const name = escapeHtml(c.chief_name || '—');
     const isToday = (!c.date_from || c.date_from <= today) && (!c.date_to || c.date_to >= today);
-    const crossStart = c.date_from && c.date_from < monthStart;
-    const crossEnd   = c.date_to   && c.date_to   > monthEnd;
-
     let dateLabel = '';
     if (c.date_from || c.date_to) {
       const from = c.date_from ? formatShortDateTH(c.date_from) : '...';
       const to   = c.date_to   ? formatShortDateTH(c.date_to)   : '...';
       dateLabel = `<span style="color:var(--gray4);font-size:11px;margin-left:6px">${escapeHtml(from)} – ${escapeHtml(to)}</span>`;
     }
-
-    let badge = '';
-    if (crossStart) badge += `<span style="font-size:10px;background:#fff3e0;color:#e67e22;border-radius:4px;padding:1px 5px;margin-left:4px">◀ จากเดือน ${escapeHtml(c.date_from.slice(0,7))}</span>`;
-    if (crossEnd)   badge += `<span style="font-size:10px;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 5px;margin-left:4px">▶ ถึงเดือน ${escapeHtml(c.date_to.slice(0,7))}</span>`;
-    if (isToday)    badge += `<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 5px;margin-left:4px">● วันนี้</span>`;
-
     const borderColor = isToday ? '#4caf50' : 'var(--gray2)';
     const bg = isToday ? '#f1f8f2' : '#fff';
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:${bg};border:1px solid ${borderColor};border-radius:6px">
-      <span style="flex:1;font-size:13px;font-weight:600">${name}${dateLabel}${badge}</span>
+      <span style="flex:1;font-size:13px;font-weight:600">${name}${dateLabel}${isToday ? `<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 5px;margin-left:4px">● วันนี้</span>` : ''}</span>
       <button class="btn-icon btn-sm" title="ลบ" onclick="deleteChiefSlot('${escapeHtml(c.id)}','${escapeHtml(wardCode)}')">🗑️</button>
     </div>`;
   }).join('');
+}
+
+// ── Supervise (per-month) list ──────────────────────────────
+function renderSuperviseList(wardCode) {
+  const el = document.getElementById('chief-sup-list');
+  if (!el) return;
+  const rows = [..._superviseAllRows].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+  if (!rows.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--gray4);margin:4px 0 8px">ยังไม่มี Supervise — เพิ่มได้ด้านล่าง</p>';
+    return;
+  }
+  el.innerHTML = rows.map(r => {
+    const label    = escapeHtml(monthToThaiLabel(r.month));
+    const supNames = escapeHtml(r.supervise_list || '—');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:#fff;border:1px solid var(--gray2);border-radius:6px">
+      <span style="font-size:12px;font-weight:700;white-space:nowrap;min-width:100px;color:var(--primary)">${label}</span>
+      <span style="flex:1;font-size:12px;color:var(--gray5)">${supNames}</span>
+      <button class="btn-icon btn-sm" title="ลบ" onclick="deleteSuperviseMonth('${escapeHtml(r.id)}','${escapeHtml(wardCode)}')">🗑️</button>
+    </div>`;
+  }).join('');
+}
+
+function renderSuperviseCheckboxes() {
+  const el = document.getElementById('sup-add-checkboxes');
+  if (!el) return;
+  if (!state.supervisors || !state.supervisors.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--gray4)">ยังไม่มีอาจารย์ในระบบ</p>';
+    return;
+  }
+  el.innerHTML = state.supervisors.map(s =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
+      <input type="checkbox" value="${escapeHtml(s.name)}" style="width:16px;height:16px;cursor:pointer"> ${escapeHtml(s.name)}
+    </label>`
+  ).join('');
+}
+
+async function reloadChiefModalData(wardCode) {
+  try {
+    const res = await apiGet(`action=chiefs_all&ward=${encodeURIComponent(wardCode)}`);
+    const all  = res?.data || [];
+    _chiefAllRows     = all.filter(r => r.chief_name || r.date_from || r.date_to);
+    _superviseAllRows = all.filter(r => String(r.id || '').startsWith('WS_'));
+  } catch { /* keep existing */ }
+  renderChiefSlotsList(wardCode);
+  renderSuperviseList(wardCode);
 }
 
 async function addChiefSlot() {
@@ -3797,14 +3869,13 @@ async function addChiefSlot() {
   if (!chiefName) { toast('กรุณาเลือก Chief Resident', 'error'); return; }
 
   const resident = state.residents.find(r => r.name === chiefName);
-  // Save under the month of date_from; fall back to currently-viewed month
   const month = dateFrom ? dateFrom.slice(0, 7) : state.month;
   const data = {
     month,
     ward_code:      wardCode,
     chief_name:     chiefName,
     chief_line_id:  resident?.line_id || '',
-    supervise_list: '', // supervise_list lives on the WS_ row, not on date-range chief rows
+    supervise_list: '',
     date_from:      dateFrom || null,
     date_to:        dateTo   || null,
   };
@@ -3813,7 +3884,7 @@ async function addChiefSlot() {
     if (!res.success) throw new Error(res.error);
     toast('เพิ่ม Chief แล้ว ✓', 'success');
     await reloadChiefsState();
-    renderChiefSlotsList(wardCode);
+    await reloadChiefModalData(wardCode);
   } catch(e) { toast('เพิ่มไม่ได้: '+e.message, 'error'); }
 }
 
@@ -3824,23 +3895,47 @@ async function deleteChiefSlot(id, wardCode) {
     if (!res.success) throw new Error(res.error);
     toast('ลบแล้ว ✓', 'success');
     await reloadChiefsState();
-    renderChiefSlotsList(wardCode);
+    await reloadChiefModalData(wardCode);
     renderChiefs();
   } catch(e) { toast('ลบไม่ได้: '+e.message, 'error'); }
 }
 
-async function saveWardSupervise() {
+async function addSuperviseMonth() {
   const wardCode = document.getElementById('chief-ward-code').value;
-  const supSel = document.getElementById('chief-sup-sel');
-  const supList = Array.from(supSel.selectedOptions).map(o => o.value).join(', ');
+  const monthNum = document.getElementById('sup-add-month').value;          // "01"–"12"
+  const beYear   = parseInt(document.getElementById('sup-add-year-be').value, 10);
+  if (!beYear || beYear < 2560) { toast('กรุณาระบุปี พ.ศ. ให้ถูกต้อง', 'error'); return; }
+  const ceYear = beYear - 543;
+  const month  = `${ceYear}-${monthNum}`;
+
+  const checked = Array.from(
+    document.querySelectorAll('#sup-add-checkboxes input[type=checkbox]:checked')
+  ).map(cb => cb.value);
+  if (!checked.length) { toast('กรุณาเลือกอาจารย์อย่างน้อย 1 คน', 'error'); return; }
+
+  const supList = checked.join(', ');
   try {
-    const res = await api({ action:'save_ward_supervise', data:{ month:state.month, ward_code:wardCode, supervise_list:supList } }, true);
+    const res = await api({ action:'save_ward_supervise', data:{ month, ward_code:wardCode, supervise_list:supList } }, true);
     if (!res.success) throw new Error(res.error);
-    closeModal('modal-chief');
-    toast('บันทึก Supervise แล้ว ✓','success');
+    toast(`บันทึก Supervise ${monthToThaiLabel(month)} แล้ว ✓`, 'success');
+    // Uncheck all
+    document.querySelectorAll('#sup-add-checkboxes input[type=checkbox]').forEach(cb => cb.checked = false);
     await reloadChiefsState();
+    await reloadChiefModalData(wardCode);
     renderChiefs();
-  } catch(e) { toast('บันทึกไม่ได้: '+e.message,'error'); }
+  } catch(e) { toast('บันทึกไม่ได้: '+e.message, 'error'); }
+}
+
+async function deleteSuperviseMonth(id, wardCode) {
+  if (!confirm('ลบ Supervise เดือนนี้?')) return;
+  try {
+    const res = await api({ action:'delete_chief', id }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('ลบแล้ว ✓', 'success');
+    await reloadChiefsState();
+    await reloadChiefModalData(wardCode);
+    renderChiefs();
+  } catch(e) { toast('ลบไม่ได้: '+e.message, 'error'); }
 }
 
 async function reloadChiefsState() {

@@ -41,6 +41,10 @@ export const router = {
     if (action === 'chiefs') {
       return ok({ data: await getChiefs(month, db) });
     }
+    if (action === 'chiefs_all') {
+      const ward = (url.searchParams.get('ward') || '').trim();
+      return ok({ data: await getChiefsAll(ward, db) });
+    }
     if (action === 'chief_residents') {
       return ok({ data: await getChiefResidents(db) });
     }
@@ -406,6 +410,15 @@ async function getUsers(db) {
 }
 async function getDoctors(db) {
   const { rows } = await db.execute(`SELECT * FROM doctors WHERE status NOT IN ('deleted') ORDER BY name`);
+  return rows;
+}
+async function getChiefsAll(ward, db) {
+  const { rows } = await db.execute({
+    sql: `SELECT * FROM chiefs
+          WHERE ward_code = ?
+          ORDER BY COALESCE(date_from, month, '9999'), id`,
+    args: [ward || ''],
+  });
   return rows;
 }
 async function getChiefResidents(db) {
