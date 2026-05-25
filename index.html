@@ -2117,14 +2117,17 @@ function activeChiefFromList(list, dateStr) {
 // Returns a single merged chief object for a given date range (for elective chief resolution).
 function mergeChiefsForPeriod(list, periodStart, periodEnd) {
   if (!list || !list.length) return {};
+  // Strip empty-named rows (WS_ supervisor rows, legacy placeholders) — same guard as server-side mergeChiefSlots
+  const named = list.filter(c => String(c.chief_name || '').trim());
+  if (!named.length) return {};
   const overlapping = periodStart
-    ? list.filter(c => {
+    ? named.filter(c => {
         const from = c.date_from || '0000-01-01';
         const to   = c.date_to   || '9999-12-31';
         return from <= (periodEnd || '9999-12-31') && to >= periodStart;
       })
-    : list;
-  const active = overlapping.length ? overlapping : list;
+    : named;
+  const active = overlapping.length ? overlapping : named;
   if (active.length === 1) return active[0];
   // Multiple chiefs — each entry gets its own LINE ID inline
   const fmtL = s => { const v = String(s||'').trim(); return v && !v.startsWith('@') && !v.startsWith('http') ? `@${v}` : v; };
@@ -4228,6 +4231,11 @@ function monthFromRangeStart(rangeText) {
   const m = s.match(/(\d{4}-\d{2})-\d{2}\s*(?:ถึง|to|-)\s*\d{4}-\d{2}-\d{2}/);
   return m ? m[1] : '';
 }
+function monthFromRangeEnd(rangeText) {
+  const s = String(rangeText || '').trim();
+  const m = s.match(/\d{4}-\d{2}-\d{2}\s*(?:ถึง|to|-)\s*(\d{4}-\d{2})-\d{2}/);
+  return m ? m[1] : '';
+}
 
 function wardToCodeForElective(ward) {
   const w = String(ward || '').trim();
@@ -4266,24 +4274,39 @@ async function getChiefsForMonthClient(monthYyyyMm) {
 
 async function resolveElectiveChiefsClient(e) {
   const fallbackMonth = currentMonthStr();
-  const month1 = monthFromRangeStart(e?.date_range) || fallbackMonth;
-  const month2 = monthFromRangeStart(e?.date_range2) || month1;
+  const month1Start = monthFromRangeStart(e?.date_range)  || fallbackMonth;
+  const month1End   = monthFromRangeEnd(e?.date_range)    || month1Start;
+  const month2Start = monthFromRangeStart(e?.date_range2) || month1Start;
+  const month2End   = monthFromRangeEnd(e?.date_range2)   || month2Start;
   const ward1Code = wardToCodeForElective(e?.ward);
   const ward2Code = wardToCodeForElective(e?.ward2);
 
-  const [chiefs1, chiefs2raw] = await Promise.all([
-    getChiefsForMonthClient(month1),
-    month2 === month1 ? Promise.resolve(null) : getChiefsForMonthClient(month2),
-  ]);
-  const chiefs2 = chiefs2raw ?? chiefs1;
+  // Fetch all unique months needed across both periods
+  const uniqueMonths = [...new Set([month1Start, month1End, month2Start, month2End])];
+  const fetchedMap = Object.fromEntries(
+    await Promise.all(uniqueMonths.map(async mo => [mo, await getChiefsForMonthClient(mo)]))
+  );
+
+  // Merge ward rows from multiple months, deduplicated by id
+  function mergedWardRows(wardCode, monthList) {
+    const seen = new Set();
+    const rows = [];
+    for (const mo of monthList) {
+      for (const c of (fetchedMap[mo]?.[wardCode] || [])) {
+        const key = c.id || JSON.stringify(c);
+        if (!seen.has(key)) { seen.add(key); rows.push(c); }
+      }
+    }
+    return rows;
+  }
 
   const r1 = parseRange(e?.date_range || '');
   const r2 = parseRange(e?.date_range2 || '');
   const fmtD = d => d?.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
 
   return {
-    c1: ward1Code ? mergeChiefsForPeriod(chiefs1[ward1Code] || [], r1 ? fmtD(r1.start) : null, r1 ? fmtD(r1.end) : null) : {},
-    c2: ward2Code ? mergeChiefsForPeriod(chiefs2[ward2Code] || [], r2 ? fmtD(r2.start) : null, r2 ? fmtD(r2.end) : null) : {},
+    c1: ward1Code ? mergeChiefsForPeriod(mergedWardRows(ward1Code, [month1Start, month1End]), r1 ? fmtD(r1.start) : null, r1 ? fmtD(r1.end) : null) : {},
+    c2: ward2Code ? mergeChiefsForPeriod(mergedWardRows(ward2Code, [month2Start, month2End]), r2 ? fmtD(r2.start) : null, r2 ? fmtD(r2.end) : null) : {},
   };
 }
 function fmtLineClient(line) {
