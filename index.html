@@ -1907,6 +1907,7 @@ const _chiefsByMonthCache = {};
 let _chiefAllRows     = [];   // rows with chief_name or date range (non-WS_)
 let _superviseAllRows = [];   // WS_ rows (per-month supervisor lists)
 let _supOrderSelected = [];   // ordered supervisor names in add-supervise form
+let _editingSupRow    = null; // { id, wardCode, order: [] } — inline-edit state
 // In-flight Promise for the initial public_settings fetch — shared between
 // bootstrapPublicSettingsAndLiff() and loadPage() to avoid a double round-trip.
 let _publicSettingsBootstrap = null;
@@ -3826,6 +3827,9 @@ async function openChiefModal(wardCode) {
   document.getElementById('sup-add-month').value   = String(cm).padStart(2, '0');
   document.getElementById('sup-add-year-be').value = cy + 543;
 
+  // Reset any open inline editor
+  _editingSupRow = null;
+
   // Render supervisor checkbox list
   renderSuperviseCheckboxes();
 
@@ -3872,6 +3876,34 @@ function renderSuperviseList(wardCode) {
   el.innerHTML = rows.map(r => {
     const label = escapeHtml(monthToThaiLabel(r.month));
     const names = (r.supervise_list || '').split(',').map(n => n.trim()).filter(Boolean);
+    const isEditing = _editingSupRow?.id === r.id;
+
+    if (isEditing) {
+      const ord = _editingSupRow.order;
+      const total = ord.length;
+      const badge = (i) => {
+        if (total <= 1) return '';
+        if (i === 0)         return `<span style="font-size:10px;background:#e3f0ff;color:#1976d2;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:4px">ต้นเดือน</span>`;
+        if (i === total - 1) return `<span style="font-size:10px;background:#fff3e0;color:#e65100;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:4px">ปลายเดือน</span>`;
+        return `<span style="font-size:10px;background:#f3f3f3;color:#555;border-radius:4px;padding:1px 5px;margin-left:4px">${i+1}</span>`;
+      };
+      const orderRows = ord.map((n, i) =>
+        `<div style="display:flex;align-items:center;gap:5px;padding:4px 6px;margin-bottom:3px;background:#fff;border:1px solid var(--gray2);border-radius:5px">
+          <span style="flex:1;font-size:12px;font-weight:600">${escapeHtml(n)}${badge(i)}</span>
+          <button class="btn-icon" style="font-size:12px;padding:0 2px;line-height:1" title="ขึ้น" onclick="moveEditSupRow(${i},-1)" ${i===0?'disabled':''}>▲</button>
+          <button class="btn-icon" style="font-size:12px;padding:0 2px;line-height:1" title="ลง" onclick="moveEditSupRow(${i},1)" ${i===total-1?'disabled':''}>▼</button>
+        </div>`
+      ).join('');
+      return `<div style="padding:8px 10px;margin-bottom:5px;background:#f8f9ff;border:1px solid var(--primary);border-radius:6px">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px">${label}</div>
+        ${orderRows}
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn btn-primary btn-sm" onclick="saveEditSupRow()">💾 บันทึก</button>
+          <button class="btn btn-outline btn-sm" onclick="cancelEditSupRow()">ยกเลิก</button>
+        </div>
+      </div>`;
+    }
+
     const supHtml = names.length > 1
       ? names.map((n, i) => {
           const b = i === 0
@@ -3882,12 +3914,52 @@ function renderSuperviseList(wardCode) {
           return `<span>${escapeHtml(n)}${b}</span>`;
         }).join('<span style="color:var(--gray3);margin:0 4px">·</span>')
       : escapeHtml(names[0] || '—');
+    const encodedNames = escapeHtml(JSON.stringify(names));
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:#fff;border:1px solid var(--gray2);border-radius:6px">
       <span style="font-size:12px;font-weight:700;white-space:nowrap;min-width:100px;color:var(--primary)">${label}</span>
       <span style="flex:1;font-size:12px;color:var(--gray5)">${supHtml}</span>
+      <button class="btn-icon btn-sm" title="แก้ไข" onclick="startEditSupRow('${escapeHtml(r.id)}','${escapeHtml(wardCode)}',${encodedNames})">✏️</button>
       <button class="btn-icon btn-sm" title="ลบ" onclick="deleteSuperviseMonth('${escapeHtml(r.id)}','${escapeHtml(wardCode)}')">🗑️</button>
     </div>`;
   }).join('');
+}
+
+function startEditSupRow(id, wardCode, names) {
+  _editingSupRow = { id, wardCode, order: Array.isArray(names) ? [...names] : [] };
+  renderSuperviseList(wardCode);
+}
+
+function moveEditSupRow(idx, dir) {
+  if (!_editingSupRow) return;
+  const j = idx + dir;
+  if (j < 0 || j >= _editingSupRow.order.length) return;
+  [_editingSupRow.order[idx], _editingSupRow.order[j]] = [_editingSupRow.order[j], _editingSupRow.order[idx]];
+  renderSuperviseList(_editingSupRow.wardCode);
+}
+
+async function saveEditSupRow() {
+  if (!_editingSupRow) return;
+  const { id, wardCode, order } = _editingSupRow;
+  const row = _superviseAllRows.find(r => r.id === id);
+  if (!row) { toast('ไม่พบข้อมูล', 'error'); return; }
+  const supList = order.join(', ');
+  try {
+    const res = await api({ action: 'save_ward_supervise', data: { month: row.month, ward_code: wardCode, supervise_list: supList } }, true);
+    if (!res.success) throw new Error(res.error);
+    toast('บันทึกลำดับแล้ว ✓', 'success');
+    _editingSupRow = null;
+    delete _chiefsByMonthCache[row.month];
+    await reloadChiefsState();
+    await reloadChiefModalData(wardCode);
+    renderChiefs();
+  } catch(e) { toast('บันทึกไม่ได้: ' + e.message, 'error'); }
+}
+
+function cancelEditSupRow() {
+  if (!_editingSupRow) return;
+  const wardCode = _editingSupRow.wardCode;
+  _editingSupRow = null;
+  renderSuperviseList(wardCode);
 }
 
 function renderSuperviseCheckboxes() {
