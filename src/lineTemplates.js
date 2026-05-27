@@ -193,7 +193,7 @@ export async function buildElectiveOPDBlock(elective, db) {
       sql: `SELECT oc.date, oc.opd_mode, s.name as supervisor_name
             FROM opd_calendar oc
             LEFT JOIN supervisors s ON s.id = oc.supervisor_id
-            WHERE oc.date >= date('now')
+            WHERE oc.date >= date('now', '+7 hours')
               AND oc.elective_ids LIKE ?
             ORDER BY oc.date
             LIMIT 10`,
@@ -384,7 +384,7 @@ export async function buildElectiveOPDBlockEn(elective, db) {
       sql: `SELECT oc.date, oc.opd_mode, s.name as supervisor_name, ifnull(s.name_en,'') as supervisor_name_en
             FROM opd_calendar oc
             LEFT JOIN supervisors s ON s.id = oc.supervisor_id
-            WHERE oc.date >= date('now')
+            WHERE oc.date >= date('now', '+7 hours')
               AND oc.elective_ids LIKE ?
             ORDER BY oc.date
             LIMIT 10`,
@@ -529,7 +529,7 @@ export async function buildOPDBlock(doctor, data, db) {
       sql: `SELECT oc.*, s.name as supervisor_name
             FROM opd_calendar oc
             LEFT JOIN supervisors s ON s.id = oc.supervisor_id
-            WHERE oc.date >= date('now')
+            WHERE oc.date >= date('now', '+7 hours')
             AND oc.elective_ids LIKE ?
             ORDER BY oc.date LIMIT 10`,
       args: [`%${doctor.id}%`],

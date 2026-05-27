@@ -863,8 +863,12 @@ body.font-adjust-enabled .var-chip{--base-font-size:10px}
               <input type="number" id="sup-add-year-be" min="2560" max="2590" style="width:80px">
             </div>
           </div>
-          <div style="font-size:11px;font-weight:600;color:var(--gray4);margin-bottom:6px">เลือกอาจารย์ (คลิกเพื่อติ๊ก):</div>
-          <div id="sup-add-checkboxes" style="max-height:160px;overflow-y:auto;background:#fff;border:1px solid var(--gray2);border-radius:6px;padding:6px 10px"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--gray4);margin-bottom:6px">เลือกอาจารย์ (คลิกเพื่อเพิ่ม):</div>
+          <div id="sup-add-checkboxes" style="max-height:130px;overflow-y:auto;background:#fff;border:1px solid var(--gray2);border-radius:6px;padding:6px 10px"></div>
+          <div id="sup-order-area" style="display:none;margin-top:8px">
+            <div style="font-size:11px;font-weight:600;color:var(--gray4);margin-bottom:4px">ลำดับ:</div>
+            <div id="sup-order-list"></div>
+          </div>
           <button class="btn btn-outline btn-sm" onclick="addSuperviseMonth()" style="margin-top:8px;white-space:nowrap">➕ เพิ่มเดือนนี้</button>
         </div>
       </div>
@@ -1902,6 +1906,7 @@ const _chiefsByMonthCache = {};
 // Modal-local state for the Chief/Supervise modal (all rows for one ward)
 let _chiefAllRows     = [];   // rows with chief_name or date range (non-WS_)
 let _superviseAllRows = [];   // WS_ rows (per-month supervisor lists)
+let _supOrderSelected = [];   // ordered supervisor names in add-supervise form
 // In-flight Promise for the initial public_settings fetch — shared between
 // bootstrapPublicSettingsAndLiff() and loadPage() to avoid a double round-trip.
 let _publicSettingsBootstrap = null;
@@ -3865,11 +3870,21 @@ function renderSuperviseList(wardCode) {
     return;
   }
   el.innerHTML = rows.map(r => {
-    const label    = escapeHtml(monthToThaiLabel(r.month));
-    const supNames = escapeHtml(r.supervise_list || '—');
+    const label = escapeHtml(monthToThaiLabel(r.month));
+    const names = (r.supervise_list || '').split(',').map(n => n.trim()).filter(Boolean);
+    const supHtml = names.length > 1
+      ? names.map((n, i) => {
+          const b = i === 0
+            ? `<span style="font-size:10px;background:#e3f0ff;color:#1976d2;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:3px">ต้นเดือน</span>`
+            : i === names.length - 1
+              ? `<span style="font-size:10px;background:#fff3e0;color:#e65100;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:3px">ปลายเดือน</span>`
+              : `<span style="font-size:10px;background:#f3f3f3;color:#555;border-radius:4px;padding:1px 5px;margin-left:3px">${i+1}</span>`;
+          return `<span>${escapeHtml(n)}${b}</span>`;
+        }).join('<span style="color:var(--gray3);margin:0 4px">·</span>')
+      : escapeHtml(names[0] || '—');
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;background:#fff;border:1px solid var(--gray2);border-radius:6px">
       <span style="font-size:12px;font-weight:700;white-space:nowrap;min-width:100px;color:var(--primary)">${label}</span>
-      <span style="flex:1;font-size:12px;color:var(--gray5)">${supNames}</span>
+      <span style="flex:1;font-size:12px;color:var(--gray5)">${supHtml}</span>
       <button class="btn-icon btn-sm" title="ลบ" onclick="deleteSuperviseMonth('${escapeHtml(r.id)}','${escapeHtml(wardCode)}')">🗑️</button>
     </div>`;
   }).join('');
@@ -3878,14 +3893,64 @@ function renderSuperviseList(wardCode) {
 function renderSuperviseCheckboxes() {
   const el = document.getElementById('sup-add-checkboxes');
   if (!el) return;
+  _supOrderSelected = [];
+  renderSuperviseOrder();
   if (!state.supervisors || !state.supervisors.length) {
     el.innerHTML = '<p style="font-size:12px;color:var(--gray4)">ยังไม่มีอาจารย์ในระบบ</p>';
     return;
   }
   el.innerHTML = state.supervisors.map(s =>
-    `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">
-      <input type="checkbox" value="${escapeHtml(s.name)}" style="width:16px;height:16px;cursor:pointer"> ${escapeHtml(s.name)}
-    </label>`
+    `<div id="sup-pick-${escapeHtml(s.id)}" onclick="toggleSupervisorInOrder('${escapeHtml(s.name)}')"
+      style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;font-size:13px;border-radius:5px;margin-bottom:2px;user-select:none;transition:background .15s">
+      <span id="sup-pick-icon-${escapeHtml(s.id)}" style="font-size:15px;line-height:1">☐</span>
+      <span>${escapeHtml(s.name)}</span>
+    </div>`
+  ).join('');
+}
+
+function toggleSupervisorInOrder(name) {
+  const idx = _supOrderSelected.indexOf(name);
+  if (idx === -1) _supOrderSelected.push(name);
+  else _supOrderSelected.splice(idx, 1);
+  renderSuperviseOrder();
+  (state.supervisors || []).forEach(s => {
+    const icon = document.getElementById(`sup-pick-icon-${s.id}`);
+    const row  = document.getElementById(`sup-pick-${s.id}`);
+    if (!icon || !row) return;
+    const sel = _supOrderSelected.includes(s.name);
+    icon.textContent  = sel ? '☑' : '☐';
+    row.style.background = sel ? '#eef3ff' : '';
+  });
+}
+
+function moveSupervisorOrder(idx, dir) {
+  const j = idx + dir;
+  if (j < 0 || j >= _supOrderSelected.length) return;
+  [_supOrderSelected[idx], _supOrderSelected[j]] = [_supOrderSelected[j], _supOrderSelected[idx]];
+  renderSuperviseOrder();
+}
+
+function renderSuperviseOrder() {
+  const area = document.getElementById('sup-order-area');
+  const list = document.getElementById('sup-order-list');
+  if (!area || !list) return;
+  if (!_supOrderSelected.length) { area.style.display = 'none'; list.innerHTML = ''; return; }
+  area.style.display = '';
+  const total = _supOrderSelected.length;
+  const badge = (i) => {
+    if (total === 1) return '';
+    if (i === 0)           return `<span style="font-size:10px;background:#e3f0ff;color:#1976d2;border-radius:4px;padding:1px 6px;font-weight:700">ต้นเดือน</span>`;
+    if (i === total - 1)   return `<span style="font-size:10px;background:#fff3e0;color:#e65100;border-radius:4px;padding:1px 6px;font-weight:700">ปลายเดือน</span>`;
+    return `<span style="font-size:10px;background:#f3f3f3;color:#555;border-radius:4px;padding:1px 6px">${i+1}</span>`;
+  };
+  list.innerHTML = _supOrderSelected.map((name, i) =>
+    `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:4px;background:#fff;border:1px solid var(--gray2);border-radius:6px">
+      <span style="flex:1;font-size:13px;font-weight:600">${escapeHtml(name)}</span>
+      ${badge(i)}
+      <button class="btn-icon" style="font-size:13px;padding:0 3px;line-height:1" title="ขึ้น" onclick="moveSupervisorOrder(${i},-1)" ${i===0?'disabled':''}>▲</button>
+      <button class="btn-icon" style="font-size:13px;padding:0 3px;line-height:1" title="ลง" onclick="moveSupervisorOrder(${i},1)" ${i===total-1?'disabled':''}>▼</button>
+      <button class="btn-icon" style="font-size:13px;padding:0 3px;line-height:1;color:var(--danger)" title="เอาออก" onclick="toggleSupervisorInOrder('${escapeHtml(name.replace(/'/g,"&#39;"))}')">×</button>
+    </div>`
   ).join('');
 }
 
@@ -3947,18 +4012,15 @@ async function addSuperviseMonth() {
   const ceYear = beYear - 543;
   const month  = `${ceYear}-${monthNum}`;
 
-  const checked = Array.from(
-    document.querySelectorAll('#sup-add-checkboxes input[type=checkbox]:checked')
-  ).map(cb => cb.value);
-  if (!checked.length) { toast('กรุณาเลือกอาจารย์อย่างน้อย 1 คน', 'error'); return; }
+  if (!_supOrderSelected.length) { toast('กรุณาเลือกอาจารย์อย่างน้อย 1 คน', 'error'); return; }
 
-  const supList = checked.join(', ');
+  const supList = _supOrderSelected.join(', ');
   try {
     const res = await api({ action:'save_ward_supervise', data:{ month, ward_code:wardCode, supervise_list:supList } }, true);
     if (!res.success) throw new Error(res.error);
     toast(`บันทึก Supervise ${monthToThaiLabel(month)} แล้ว ✓`, 'success');
-    // Uncheck all
-    document.querySelectorAll('#sup-add-checkboxes input[type=checkbox]').forEach(cb => cb.checked = false);
+    _supOrderSelected = [];
+    renderSuperviseCheckboxes();
     delete _chiefsByMonthCache[month]; // invalidate cache for the saved month
     await reloadChiefsState();
     await reloadChiefModalData(wardCode);
@@ -5326,10 +5388,8 @@ function parseRange(str) {
 function parseRangeToInputs(str) {
   const r = parseRange(str);
   if (!r) return { start:'', end:'' };
-  return {
-    start: r.start.toISOString().slice(0,10),
-    end:   r.end.toISOString().slice(0,10),
-  };
+  const fmtBkk = d => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  return { start: fmtBkk(r.start), end: fmtBkk(r.end) };
 }
 
 
@@ -5672,7 +5732,7 @@ async function loadArchiveStats() {
     state.electives.forEach(e => {
       const r = parseRange(e.date_range || '');
       if (!r) return;
-      const mKey = r.start.toISOString().slice(0,7);
+      const mKey = r.start.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0,7);
       if (!currentByMonth[mKey]) currentByMonth[mKey] = { total:0, byLevel:{}, byHospital:{} };
       currentByMonth[mKey].total++;
       const lvl = e.level || 'ไม่ระบุ';
@@ -5727,7 +5787,7 @@ async function openStatsModal() {
     state.electives.forEach(e => {
       const r = parseRange(e.date_range || '');
       if (!r) return;
-      const mKey = r.start.toISOString().slice(0,7);
+      const mKey = r.start.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0,7);
       if (!currentByMonth[mKey]) currentByMonth[mKey] = { total:0, byLevel:{}, byHospital:{} };
       currentByMonth[mKey].total++;
       const lvl = e.level || 'ไม่ระบุ';
