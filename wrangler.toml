@@ -3,6 +3,10 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[assets]
+directory = "public"
+not_found_handling = "single-page-application"
+
 # ── Cron Triggers: รันลบ log เก่าอัตโนมัติ ───────────────────────
 # ปัจจุบัน: ทุกวันที่ 1 ของเดือน 03:00 UTC (= 10:00 น. ตามเวลาไทย)
 [triggers]
