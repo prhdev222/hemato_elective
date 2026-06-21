@@ -98,12 +98,14 @@ export async function handleLineEvent(event, db, env) {
       });
       return;
     } else {
-      if (sourceType === 'user') {
+      // ไม่มั่นใจว่าใคร แต่ถ้าเป็น DM หรือดูเหมือนทักทาย/รายงานตัว → บอกให้พิมพ์ชื่อ-นามสกุลให้ครบ
+      const intro = looksLikeIntroduction(text);
+      if (sourceType === 'user' || intro) {
         await replyMessage(replyToken, NEED_FULL_NAME_HINT, env.LINE_CHANNEL_TOKEN);
       }
       await db.execute({
         sql: `INSERT INTO logs(level,fn,message,meta) VALUES('INFO','line_no_match',?,?)`,
-        args: [text, JSON.stringify({ elective_count: electives.length })],
+        args: [text, JSON.stringify({ elective_count: electives.length, intro })],
       });
       return;
     }
@@ -149,7 +151,20 @@ export function bestLooseMatch(text, list, looseThreshold = 70) {
 }
 
 const NEED_FULL_NAME_HINT =
-  'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ (หรืออย่างน้อยพิมพ์ชื่อจริงให้ถูกต้อง) แล้วบอทจะตอบข้อมูลตารางให้ค่ะ';
+  'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
+
+// คำที่บ่งชี้ว่าน่าจะเป็นการทักทาย/รายงานตัว (ถึงจะจับชื่อไม่ได้ ก็ควรตอบ hint ให้พิมพ์ชื่อให้ครบ)
+const INTRO_KEYWORDS = [
+  'สวัสดี', 'สวัดดี', 'หวัดดี', 'สวีสดี',
+  'รายงานตัว', 'แนะนำตัว', 'ทักทาย',
+  'หนูชื่อ', 'ผมชื่อ', 'ดิฉันชื่อ', 'ชื่อเล่น',
+  'มาดูงาน', 'ดูงาน', 'อีเลคทีฟ', 'อิเลคทีฟ', 'elective', 'int.',
+];
+function looksLikeIntroduction(text) {
+  const t = String(text || '').toLowerCase();
+  if (t.replace(/\s+/g, '').length < 4) return false;
+  return INTRO_KEYWORDS.some(k => t.includes(k));
+}
 
 // แปลงข้อความเป็น token ชื่อ (ตัดคำนำหน้า/วงเล็บ/สัญลักษณ์ออก เหลือเฉพาะคำที่เป็นชื่อ)
 function nameTokens(text) {
