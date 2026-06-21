@@ -86,7 +86,7 @@ export async function handleLineEvent(event, db, env) {
   let matchKind = elective ? 'fuzzy' : '';
 
   if (!elective) {
-    const loose = findLooseElectiveMatches(text, electives);
+    const loose = isNameLikeQuery(text) ? findLooseElectiveMatches(text, electives) : [];
     if (loose.length === 1) {
       elective = loose[0];
       matchKind = 'loose';
@@ -98,14 +98,15 @@ export async function handleLineEvent(event, db, env) {
       });
       return;
     } else {
-      // ไม่มั่นใจว่าใคร แต่ถ้าเป็น DM หรือดูเหมือนทักทาย/รายงานตัว → บอกให้พิมพ์ชื่อ-นามสกุลให้ครบ
+      // ไม่มั่นใจว่าใคร — ตอบ hint เฉพาะเมื่อดูเหมือนทักทาย/รายงานตัวเท่านั้น
+      // ที่เหลือเงียบ (กัน bot ตอบทุกข้อความใน group และข้อความสุ่มใน DM)
       const intro = looksLikeIntroduction(text);
-      if (sourceType === 'user' || intro) {
+      if (intro) {
         await replyMessage(replyToken, needFullNameHint(text), env.LINE_CHANNEL_TOKEN);
       }
       await db.execute({
         sql: `INSERT INTO logs(level,fn,message,meta) VALUES('INFO','line_no_match',?,?)`,
-        args: [text, JSON.stringify({ elective_count: electives.length, intro })],
+        args: [text, JSON.stringify({ elective_count: electives.length, intro, source: sourceType })],
       });
       return;
     }
@@ -185,6 +186,17 @@ function looksLikeIntroduction(text) {
   return INTRO_KEYWORDS.some(k => t.includes(k));
 }
 
+// ข้อความนี้ "ดูเหมือนการพิมพ์ชื่อ" ไหม — กันไม่ให้ loose match จับประโยค/ข้อความสุ่มในกลุ่มที่คุยกันปกติ
+function isNameLikeQuery(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (t.replace(/\s+/g, '').length > 30) return false;          // ยาวเกินไป = น่าจะเป็นประโยค
+  const tokens = t.split(/\s+/).filter(Boolean);
+  if (tokens.length > 3) return false;                          // คำเยอะ = ไม่ใช่แค่ชื่อ
+  if (/[?!@#$%^&*()_=+[\]{};:"<>/\\|]/.test(t)) return false;    // มีสัญลักษณ์แบบประโยค/พิมพ์ลวก
+  return /[ก-๙A-Za-z]/.test(t);                                 // ต้องมีตัวอักษรชื่อจริง
+}
+
 // แปลงข้อความเป็น token ชื่อ (ตัดคำนำหน้า/วงเล็บ/สัญลักษณ์ออก เหลือเฉพาะคำที่เป็นชื่อ)
 function nameTokens(text) {
   return normalizeName(text)
@@ -225,7 +237,8 @@ function tokenMatches(nameKey, queryKey) {
 // หา elective ที่ "ชื่อจริง" (คำแรก) ตรงกับที่พิมพ์ ถ้าซ้ำกันก็ใช้คำถัดไป (นามสกุล) ช่วยกรอง
 function findLooseElectiveMatches(text, electives) {
   const qKeys = nameTokens(text).map(matchKey).filter(k => k.length >= 2);
-  if (!qKeys.length) return [];
+  // ชื่อจริง (คำแรก) ต้องยาวพอ ไม่งั้นคำสั้น ๆ จะ prefix ตรงกับหลายชื่อจนตอบมั่ว
+  if (!qKeys.length || qKeys[0].length < 3) return [];
   const given = qKeys[0];
 
   let candidates = uniqueById((electives || []).filter(e =>
