@@ -101,7 +101,7 @@ export async function handleLineEvent(event, db, env) {
       // ไม่มั่นใจว่าใคร แต่ถ้าเป็น DM หรือดูเหมือนทักทาย/รายงานตัว → บอกให้พิมพ์ชื่อ-นามสกุลให้ครบ
       const intro = looksLikeIntroduction(text);
       if (sourceType === 'user' || intro) {
-        await replyMessage(replyToken, NEED_FULL_NAME_HINT, env.LINE_CHANNEL_TOKEN);
+        await replyMessage(replyToken, needFullNameHint(text), env.LINE_CHANNEL_TOKEN);
       }
       await db.execute({
         sql: `INSERT INTO logs(level,fn,message,meta) VALUES('INFO','line_no_match',?,?)`,
@@ -150,15 +150,34 @@ export function bestLooseMatch(text, list, looseThreshold = 70) {
   }
 }
 
-const NEED_FULL_NAME_HINT =
+const NEED_FULL_NAME_HINT_TH =
   'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
+const NEED_FULL_NAME_HINT_EN =
+  'Please type your full name ("First Last") and the bot will reply with your schedule.';
+// ตอบ 2 ภาษาเมื่อไม่แน่ใจว่าผู้ใช้สื่อภาษาใด
+const NEED_FULL_NAME_HINT = `${NEED_FULL_NAME_HINT_TH}\n${NEED_FULL_NAME_HINT_EN}`;
+
+// เลือกภาษา hint ตามข้อความที่พิมพ์ (อังกฤษล้วน → EN, มีไทย → TH, อื่น ๆ → 2 ภาษา)
+function needFullNameHint(text) {
+  const t = String(text || '');
+  const hasThai = /[ก-๙]/.test(t);
+  const hasLatin = /[A-Za-z]/.test(t);
+  if (hasLatin && !hasThai) return NEED_FULL_NAME_HINT_EN;
+  if (hasThai && !hasLatin) return NEED_FULL_NAME_HINT_TH;
+  return NEED_FULL_NAME_HINT;
+}
 
 // คำที่บ่งชี้ว่าน่าจะเป็นการทักทาย/รายงานตัว (ถึงจะจับชื่อไม่ได้ ก็ควรตอบ hint ให้พิมพ์ชื่อให้ครบ)
 const INTRO_KEYWORDS = [
+  // ── ไทย ──
   'สวัสดี', 'สวัดดี', 'หวัดดี', 'สวีสดี',
   'รายงานตัว', 'แนะนำตัว', 'ทักทาย',
   'หนูชื่อ', 'ผมชื่อ', 'ดิฉันชื่อ', 'ชื่อเล่น',
-  'มาดูงาน', 'ดูงาน', 'อีเลคทีฟ', 'อิเลคทีฟ', 'elective', 'int.',
+  'มาดูงาน', 'ดูงาน', 'อีเลคทีฟ', 'อิเลคทีฟ',
+  // ── อังกฤษ ──
+  'hello', 'good morning', 'good afternoon', 'good evening',
+  'my name', "i'm ", 'i am ', 'this is ', 'introduce', 'report',
+  'elective', 'int.', 'intern', 'international', 'student',
 ];
 function looksLikeIntroduction(text) {
   const t = String(text || '').toLowerCase();
@@ -224,15 +243,21 @@ function findLooseElectiveMatches(text, electives) {
 }
 
 function buildIncompleteNameHint(query, matches) {
-  const base = `ชื่อ "${query}" ยังไม่ครบค่ะ กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ เพื่อให้บอทค้นหาตารางได้แม่นยำค่ะ`;
+  const isEn = /[A-Za-z]/.test(String(query || '')) && !/[ก-๙]/.test(String(query || ''));
+  const base = isEn
+    ? `"${query}" is not specific enough. Please type your full name ("First Last") so the bot can find your schedule.`
+    : `ชื่อ "${query}" ยังไม่ครบค่ะ กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ เพื่อให้บอทค้นหาตารางได้แม่นยำค่ะ`;
   if (!matches?.length) return base;
 
   const list = matches
     .slice(0, 6)
-    .map(e => `• ${e.name}`)
+    .map(e => `• ${(isEn && String(e.name_en || '').trim()) || e.name}`)
     .join('\n');
-  const more = matches.length > 6 ? `\n...และอีก ${matches.length - 6} คน` : '';
-  return `${base}\n\nพบชื่อจริงนี้ได้หลายคน:\n${list}${more}`;
+  const more = matches.length > 6
+    ? (isEn ? `\n...and ${matches.length - 6} more` : `\n...และอีก ${matches.length - 6} คน`)
+    : '';
+  const header = isEn ? 'Matching names found:' : 'พบชื่อจริงนี้ได้หลายคน:';
+  return `${base}\n\n${header}\n${list}${more}`;
 }
 
 function uniqueById(rows) {
