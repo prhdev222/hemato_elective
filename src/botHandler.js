@@ -186,9 +186,22 @@ function matchesSingleThaiGivenName(query, elective) {
     .filter(v => String(v || '').trim())
     .some(raw => {
       const norm = normalizeName(raw);
-      const first = norm.split(/\s+/).filter(Boolean)[0] || '';
-      return first.replace(/\s+/g, '') === q;
+      const compact = norm.replace(/\s+/g, '');
+      if (q.length >= 3 && compact.includes(q)) return true;
+
+      return thaiNameTokens(norm).some(token => {
+        if (token === q) return true;
+        // ให้เดาได้เมื่อพิมพ์ชื่อจริงไม่ครบเล็กน้อย เช่น "สิริภัทร" → "สิริภัทรา"
+        return q.length >= 3 && token.startsWith(q);
+      });
     });
+}
+
+function thaiNameTokens(name) {
+  return String(name || '')
+    .split(/\s+/)
+    .map(token => token.replace(/^[^ก-๙]+|[^ก-๙]+$/g, ''))
+    .filter(token => token.length >= 2 && /[ก-๙]/.test(token));
 }
 
 function buildIncompleteNameHint(query, matches) {
