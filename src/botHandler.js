@@ -2,7 +2,7 @@
  * botHandler.js
  */
 
-import { findDoctorByName } from './fuzzyMatch.js';
+import { findDoctorByName, normalizeName } from './fuzzyMatch.js';
 import { replyMessage } from './lineService.js';
 import {
   buildElectiveReplyMessage,
@@ -44,29 +44,16 @@ export async function handleLineEvent(event, db, env) {
 
   const threshold = parseInt((await getSetting('fuzzy_threshold', db)) || '90', 10) || 90;
 
-  // ── wordCount < 2 → hint หรือ silent (ยกเว้นชื่อ Latin คำเดียวที่ยาวพอ เช่นนามสกุลฝรั่ง) ──
+  // ── wordCount < 2 → เดาชื่อไทยที่ unique ได้ หรือ hint แทนการเงียบ ──
   if (wordCount < 2) {
     const latinOneWordOk =
       /^[A-Za-z]/.test(text) &&
       !/[ก-๙]/.test(text) &&
       text.replace(/\s+/g, '').length >= 4;
     if (!latinOneWordOk) {
-      const hint = 'กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ แล้วบอทจะตอบข้อมูลให้ค่ะ';
-
-      if (sourceType === 'user' && isSingleThaiWord(text)) {
-        await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
-        return;
-      }
       if (isSingleThaiWord(text)) {
-        const q = String(text || '').trim();
-        const { rows } = await db.execute({
-          sql: `SELECT 1 FROM electives
-                WHERE (status IS NULL OR status != 'deleted')
-                AND name LIKE ? LIMIT 1`,
-          args: [`%${q}%`],
-        });
-        if (rows?.length) {
-          await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
+        const handled = await replyForSingleThaiName(text, replyToken, sourceType, db, env);
+        if (handled) {
           return;
         }
       }
@@ -151,4 +138,79 @@ export function bestLooseMatch(text, list, looseThreshold = 70) {
   } catch {
     return null;
   }
+}
+
+async function replyForSingleThaiName(text, replyToken, sourceType, db, env) {
+  const query = String(text || '').trim();
+  if (!query) return false;
+
+  const { rows: electives } = await db.execute(
+    `SELECT * FROM electives WHERE status IS NULL OR status != 'deleted' ORDER BY name`
+  );
+  const matches = uniqueById((electives || []).filter(e => matchesSingleThaiGivenName(query, e)));
+  const hint = buildIncompleteNameHint(query, matches);
+
+  if (matches.length === 1) {
+    const elective = matches[0];
+    const message = await buildElectiveReplyMessage(elective, db, null, text);
+    const ok = await replyMessage(replyToken, message, env.LINE_CHANNEL_TOKEN);
+    await db.execute({
+      sql: `INSERT INTO logs(level,fn,message,meta) VALUES(?,?,?,?)`,
+      args: [
+        ok ? 'INFO' : 'WARN',
+        ok ? 'reply_sent_elective_single_name' : 'line_reply_failed_single_name',
+        elective.name,
+        JSON.stringify({ query }),
+      ],
+    });
+    return true;
+  }
+
+  if (matches.length > 1 || sourceType === 'user') {
+    await replyMessage(replyToken, hint, env.LINE_CHANNEL_TOKEN);
+    await db.execute({
+      sql: `INSERT INTO logs(level,fn,message,meta) VALUES('INFO','line_single_name_hint',?,?)`,
+      args: [query, JSON.stringify({ match_count: matches.length })],
+    });
+    return true;
+  }
+
+  return false;
+}
+
+function matchesSingleThaiGivenName(query, elective) {
+  const q = normalizeName(query).replace(/\s+/g, '');
+  if (q.length < 2) return false;
+
+  return [elective?.name, elective?.name_en]
+    .filter(v => String(v || '').trim())
+    .some(raw => {
+      const norm = normalizeName(raw);
+      const first = norm.split(/\s+/).filter(Boolean)[0] || '';
+      return first.replace(/\s+/g, '') === q;
+    });
+}
+
+function buildIncompleteNameHint(query, matches) {
+  const base = `ชื่อ "${query}" ยังไม่ครบค่ะ กรุณาพิมพ์ "ชื่อ นามสกุล" ให้ครบ เพื่อให้บอทค้นหาตารางได้แม่นยำค่ะ`;
+  if (!matches?.length) return base;
+
+  const list = matches
+    .slice(0, 6)
+    .map(e => `• ${e.name}`)
+    .join('\n');
+  const more = matches.length > 6 ? `\n...และอีก ${matches.length - 6} คน` : '';
+  return `${base}\n\nพบชื่อจริงนี้ได้หลายคน:\n${list}${more}`;
+}
+
+function uniqueById(rows) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows || []) {
+    const key = row?.id || row?.name;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
 }
